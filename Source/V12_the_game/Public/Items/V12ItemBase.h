@@ -16,16 +16,32 @@ public:
 	AV12ItemBase();
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Item")
-	FString ItemName;
+	virtual void BeginPlay() override;
 
-	UPROPERTY(EditDefaultsONly, Category = "Item")
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	FString ItemName = "BaseItem";
+
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
 	UTexture2D* ItemIcon;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	float Duration = 0.f; // 0이면 즉시 사용
+
+
 public:	
+	virtual void Tick(float DeltaTime) override;
+
 	UFUNCTION(BlueprintCallable)
 	virtual void UseItem(class AActor* TargetActor);
 
-	FORCEINLINE FString GetItemName() const { return ItemName; }
-	FORCEINLINE UTexture2D* GetItemIcon() const { return ItemIcon; }
+	FORCEINLINE FString GetItmeName() const
+	{
+		return ItemName;
+	}
+	
+	FORCEINLINE UTexture2D* GetItemIcon() const
+	{
+		return ItemIcon;
+	}
+
 };

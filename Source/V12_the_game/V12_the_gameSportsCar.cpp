@@ -5,6 +5,7 @@
 #include "V12_the_gameSportsWheelFront.h"
 #include "V12_the_gameSportsWheelRear.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Items/V12ItemBase.h"
 
 AV12_the_gameSportsCar::AV12_the_gameSportsCar()
 {
@@ -66,4 +67,20 @@ AV12_the_gameSportsCar::AV12_the_gameSportsCar()
 	// NOTE: Check the Blueprint asset for the Steering Curve
 	GetChaosVehicleMovement()->SteeringSetup.SteeringType = ESteeringType::Ackermann;
 	GetChaosVehicleMovement()->SteeringSetup.AngleRatio = 0.7f;
+}
+
+void AV12_the_gameSportsCar::SetItem(TSubclassOf<AV12ItemBase> NewItem)
+{
+	CurrentItem = NewItem;
+	UE_LOG(LogTemp, Warning, TEXT("Current Item Set: %s"), *NewItem->GetName());
+}
+
+void AV12_the_gameSportsCar::UseItem()
+{
+	if (!CurrentItem) return;
+
+	AV12ItemBase* ItemObj = GetWorld()->SpawnActor<AV12ItemBase>(CurrentItem);
+	ItemObj->UseItem(this);
+
+	CurrentItem = nullptr; // 사용 후 제거
 }

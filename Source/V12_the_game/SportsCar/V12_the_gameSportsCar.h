@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "V12_the_gamePawn.h"
+#include "Items/V12ItemBase.h"
 #include "V12_the_gameSportsCar.generated.h"
 
 /**
@@ -17,4 +18,12 @@ class AV12_the_gameSportsCar : public AV12_the_gamePawn
 public:
 
 	AV12_the_gameSportsCar();
+
+	UPROPERTY(VisibleAnywhere)
+	TSubclassOf<AV12ItemBase> CurrentItem;
+
+	void SetItem(TSubclassOf<AV12ItemBase> NewItem);
+
+	void UseItem();
+
 };
