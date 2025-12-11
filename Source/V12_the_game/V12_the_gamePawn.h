@@ -40,9 +40,11 @@ class AV12_the_gamePawn : public AWheeledVehiclePawn
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category ="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* BackCamera;
 
+	USkeletalMeshComponent* VehicleMesh;
+public:
 	/** Cast pointer to the Chaos Vehicle movement component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
-
 protected:
 
 	/** Steering Action */
@@ -73,6 +75,37 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* ResetVehicleAction;
 
+	//Drift
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DriftingAction;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftTorqueStrength = 200;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float MaxEngineTorque = 2000;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DefaultEngineTorque = 750;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftSideSlipModifier = 0.3f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftFrictionForceMultiplier = 0.4f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftCorneringStiffness = 0.3f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float CounterSteerStrength = 0.05f;
+
+	TArray<float> DefaultSideSlipModifier;
+	TArray<float> DefaultFrictionForceMultiplier;
+	TArray<float> DefaultCorneringStiffness;
+
+	bool bIsDrifting = false;
+
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;
 
@@ -89,6 +122,7 @@ protected:
 
 	/** Flip check timer */
 	FTimerHandle FlipCheckTimer;
+
 
 public:
 	AV12_the_gamePawn();
@@ -139,6 +173,10 @@ protected:
 
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
+
+	//Drifting
+	void StartDrifting(const FInputActionValue& Value);
+	void StopDrifting(const FInputActionValue& Value);
 
 public:
 
