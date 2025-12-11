@@ -1,34 +1,46 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-// V12ItmeBox_DT.cpp
+// V12ItemBox_DT.cpp
 
-#include "Items/V12ItmeBox_DT.h"
+#include "Items/V12ItemBox_DT.h"
 #include "Components/BoxComponent.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "V12_the_gameSportsCar.h"
+#include "TimerManager.h"
 
-AV12ItmeBox_DT::AV12ItmeBox_DT()
+AV12ItemBox_DT::AV12ItemBox_DT()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	RootComponent = CollisionBox;
 
-	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AV12ItmeBox_DT::OnOverlap);	
+	CollisionBox->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AV12ItemBox_DT::OnOverlap);
+
+	// 박스 메시
+	BoxMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BoxMesh"));
+	BoxMesh->SetupAttachment(RootComponent);
+	BoxMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 회전 컴포넌트
+	RotatingComp = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("RotatingComp"));
+	RotatingComp->RotationRate = FRotator(0.f, 120.f, 0.f); // 초당 120도 회전
 }
 
-void AV12ItmeBox_DT::Tick(float DeltaTime)
+void AV12ItemBox_DT::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
 
-void AV12ItmeBox_DT::BeginPlay()
+void AV12ItemBox_DT::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
 
-void AV12ItmeBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+void AV12ItemBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
 {
@@ -44,12 +56,23 @@ void AV12ItmeBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 			UE_LOG(LogTemp, Warning, TEXT("Player acquired item from DataTable!"));
 		}
 
-		Destroy();
+		BoxMesh->SetVisibility(false);
+		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		FTimerHandle RespawnTimer;
+		GetWorldTimerManager().SetTimer(RespawnTimer, this, &AV12ItemBox_DT::Respawn, RespawnTime, false);
 	}
 }
 
+void AV12ItemBox_DT::Respawn()
+{
+	BoxMesh->SetVisibility(true);
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
-TSubclassOf<AV12ItemBase> AV12ItmeBox_DT::GetRandomItem()
+	UE_LOG(LogTemp, Warning, TEXT("ItemBox Respawned"));
+}
+
+TSubclassOf<AV12ItemBase> AV12ItemBox_DT::GetRandomItem()
 {
 	if (!ItemDataTable) return nullptr;
 
@@ -58,7 +81,7 @@ TSubclassOf<AV12ItemBase> AV12ItmeBox_DT::GetRandomItem()
 	int32 TotalWeigth = 0;
 
 	// 전체 확률 합산
-	for(FName RowName : RowNames)
+	for (FName RowName : RowNames)
 	{
 		if (FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, ""))
 		{
@@ -69,7 +92,7 @@ TSubclassOf<AV12ItemBase> AV12ItmeBox_DT::GetRandomItem()
 	int32 RandomValue = UKismetMathLibrary::RandomIntegerInRange(1, TotalWeigth);
 	int32 AccumulatedWeight = 0;
 
-	for(FName RowName : RowNames)
+	for (FName RowName : RowNames)
 	{
 		if (FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, ""))
 		{
@@ -80,7 +103,9 @@ TSubclassOf<AV12ItemBase> AV12ItmeBox_DT::GetRandomItem()
 			}
 		}
 	}
-	
+
 	return nullptr;
 }
+
+
 

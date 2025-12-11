@@ -69,10 +69,24 @@ AV12_the_gameSportsCar::AV12_the_gameSportsCar()
 	GetChaosVehicleMovement()->SteeringSetup.AngleRatio = 0.7f;
 }
 
+void AV12_the_gameSportsCar::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void AV12_the_gameSportsCar::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
+#pragma region Item System
+
 void AV12_the_gameSportsCar::SetItem(TSubclassOf<AV12ItemBase> NewItem)
 {
 	CurrentItem = NewItem;
 	UE_LOG(LogTemp, Warning, TEXT("Current Item Set: %s"), *NewItem->GetName());
+	
+	UseItem();
 }
 
 void AV12_the_gameSportsCar::UseItem()
@@ -84,3 +98,21 @@ void AV12_the_gameSportsCar::UseItem()
 
 	CurrentItem = nullptr; // 사용 후 제거
 }
+
+void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
+{
+	UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
+	if (!RootComp) return;
+
+	FVector Forward = GetActorForwardVector();
+
+	// 차량에 큰 임펄스 적용 (질량 무시)
+	RootComp->AddImpulse(Forward * BoostForce, NAME_None, true);
+}
+
+void AV12_the_gameSportsCar::EndBoost()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Nitro End"));
+}
+
+#pragma endregion
