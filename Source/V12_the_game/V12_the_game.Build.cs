@@ -16,9 +16,12 @@ public class V12_the_game : ModuleRules
 			"EnhancedInput",
 			"ChaosVehicles",
 			"PhysicsCore",
-			"UMG",
-			"Slate"
-		});
+            //UI
+            "UMG", "Slate","SlateCore",
+            
+            //PCG
+            "PCG",
+        });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"V12_the_game",
