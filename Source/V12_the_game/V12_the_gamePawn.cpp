@@ -85,6 +85,10 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 		// reset the vehicle 
 		EnhancedInputComponent->BindAction(ResetVehicleAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::ResetVehicle);
+
+		//Drifting
+		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Started, this, &AV12_the_gamePawn::StartDrifting);
+		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Completed, this, &AV12_the_gamePawn::StopDrifting);
 	}
 	else
 	{
@@ -98,6 +102,23 @@ void AV12_the_gamePawn::BeginPlay()
 
 	// set up the flipped check timer
 	GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AV12_the_gamePawn::FlippedCheck, FlipCheckTime, true);
+
+	VehicleMesh = GetMesh();
+
+	//Drift ±âº» °ª
+
+	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
+
+	DefaultSideSlipModifier.SetNum(WheelCount);
+	DefaultFrictionForceMultiplier.SetNum(WheelCount);
+	DefaultCorneringStiffness.SetNum(WheelCount);
+
+	for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
+	{
+		DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
+		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
+		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
+	}
 }
 
 void AV12_the_gamePawn::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -121,6 +142,43 @@ void AV12_the_gamePawn::Tick(float Delta)
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
+
+	if (ChaosVehicleMovement)
+	{
+		float RPM = ChaosVehicleMovement->GetEngineRotationSpeed();
+
+		GEngine->AddOnScreenDebugMessage(
+			1,
+			0.f,
+			FColor::Green,
+			FString::Printf(TEXT("RPM: %.0f"), RPM)
+		);
+	}
+
+	if (bIsDrifting)
+	{
+		float Steer = ChaosVehicleMovement->GetSteeringInput();
+		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+
+		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
+
+		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
+
+		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
+		VehicleMesh->AddForce(ForwardForce);
+		
+		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
+
+		FVector Vel = GetVelocity();
+		FVector Right = GetActorRightVector();
+		float LateralSpeed = FVector::DotProduct(Vel, Right);
+
+		float CounterSteer = -LateralSpeed * CounterSteerStrength;
+
+		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
+
+		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
+	}
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
@@ -181,6 +239,49 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 {
 	// route the input
 	DoResetVehicle();
+}
+
+void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
+{
+	DoHandbrakeStart();
+
+	bIsDrifting = true;
+
+	ChaosVehicleMovement->SetMaxEngineTorque(MaxEngineTorque);
+
+	for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
+	{
+		if (Wheel)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Drift] Wheel BEFORE: Slip=%.2f, Friction=%.2f, Corner=%.2f"),
+				Wheel->SideSlipModifier, Wheel->FrictionForceMultiplier, Wheel->CorneringStiffness);
+			if (Wheel->AxleType == EAxleType::Rear)
+			{
+				Wheel->SideSlipModifier = DriftSideSlipModifier;
+				Wheel->FrictionForceMultiplier *= DriftFrictionForceMultiplier;
+				Wheel->CorneringStiffness *= DriftCorneringStiffness;
+			}
+
+			UE_LOG(LogTemp, Warning, TEXT("[Drift] Wheel AFTER: Slip=%.2f, Friction=%.2f, Corner=%.2f"),
+				Wheel->SideSlipModifier, Wheel->FrictionForceMultiplier, Wheel->CorneringStiffness);
+		}
+	}
+}
+
+void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
+{
+	DoHandbrakeStop();
+
+	bIsDrifting = false;
+
+	ChaosVehicleMovement->SetMaxEngineTorque(DefaultEngineTorque);
+
+	for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
+	{
+		ChaosVehicleMovement->Wheels[i]->SideSlipModifier = DefaultSideSlipModifier[i];
+		ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier = DefaultFrictionForceMultiplier[i];
+		ChaosVehicleMovement->Wheels[i]->CorneringStiffness = DefaultCorneringStiffness[i];
+	}
 }
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)

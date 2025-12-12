@@ -6,6 +6,7 @@
 #include "V12_the_gameUI.h"
 #include "EnhancedInputSubsystems.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "ChaosVehicleWheel.h"
 #include "Blueprint/UserWidget.h"
 #include "V12_the_game.h"
 #include "Kismet/GameplayStatics.h"
@@ -22,25 +23,6 @@ void AV12_the_gamePlayerController::BeginPlay()
 	// only spawn UI on local player controllers
 	if (IsLocalPlayerController())
 	{
-		if (ShouldUseTouchControls())
-		{
-			// spawn the mobile controls widget
-			MobileControlsWidget = CreateWidget<UUserWidget>(this, MobileControlsWidgetClass);
-
-			if (MobileControlsWidget)
-			{
-				// add the controls to the player screen
-				MobileControlsWidget->AddToPlayerScreen(0);
-
-			} else {
-
-				UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn mobile controls widget."));
-
-			}
-		}
-		
-
-		// spawn the UI widget and add it to the viewport
 		VehicleUI = CreateWidget<UV12_the_gameUI>(this, VehicleUIClass);
 
 		if (VehicleUI)
@@ -68,15 +50,6 @@ void AV12_the_gamePlayerController::SetupInputComponent()
 			for (UInputMappingContext* CurrentContext : DefaultMappingContexts)
 			{
 				Subsystem->AddMappingContext(CurrentContext, 0);
-			}
-
-			// only add these IMCs if we're not using mobile touch input
-			if (!ShouldUseTouchControls())
-			{
-				for (UInputMappingContext* CurrentContext : MobileExcludedMappingContexts)
-				{
-					Subsystem->AddMappingContext(CurrentContext, 0);
-				}
 			}
 		}
 	}
@@ -121,10 +94,4 @@ void AV12_the_gamePlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 			Possess(RespawnedVehicle);
 		}
 	}
-}
-
-bool AV12_the_gamePlayerController::ShouldUseTouchControls() const
-{
-	// are we on a mobile platform? Should we force touch?
-	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
 }
