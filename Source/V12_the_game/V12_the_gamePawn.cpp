@@ -155,20 +155,30 @@ void AV12_the_gamePawn::Tick(float Delta)
 		);
 	}
 
-	/*if (bIsDrifting)
+	if (bIsDrifting)
 	{
-		float SteerInput = ChaosVehicleMovement->GetSteeringInput();
+		float Steer = ChaosVehicleMovement->GetSteeringInput();
+		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+
+		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
+
+		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
+
+		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
+		VehicleMesh->AddForce(ForwardForce);
+		
+		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
 
 		FVector Vel = GetVelocity();
 		FVector Right = GetActorRightVector();
 		float LateralSpeed = FVector::DotProduct(Vel, Right);
 
-		float CounterSteer = LateralSpeed * CounterSteerStrength;
+		float CounterSteer = -LateralSpeed * CounterSteerStrength;
 
 		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
 
-		ChaosVehicleMovement->SetSteeringInput(FinalSteer);
-	}*/
+		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
+	}
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
@@ -238,12 +248,6 @@ void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 	bIsDrifting = true;
 
 	ChaosVehicleMovement->SetMaxEngineTorque(MaxEngineTorque);
-	/*float Steer = ChaosVehicleMovement->GetSteeringInput();
-	float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
-
-	FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
-
-	VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);*/
 
 	for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
 	{

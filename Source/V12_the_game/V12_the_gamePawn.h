@@ -100,6 +100,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Drift")
 	float CounterSteerStrength = 0.05f;
 
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftForwardForce = 1000.f;
+
 	TArray<float> DefaultSideSlipModifier;
 	TArray<float> DefaultFrictionForceMultiplier;
 	TArray<float> DefaultCorneringStiffness;
