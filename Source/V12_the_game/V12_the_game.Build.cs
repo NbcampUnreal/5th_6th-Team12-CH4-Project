@@ -8,7 +8,8 @@ public class V12_the_game : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] {
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
 			"Core",
 			"CoreUObject",
 			"Engine",
@@ -17,11 +18,10 @@ public class V12_the_game : ModuleRules
 			"ChaosVehicles",
 			"PhysicsCore",
 			//UI
-			"UMG", "Slate","SlateCore",
-			
+			"UMG", "Slate", "SlateCore",
 			//PCG
-			"PCG","PCG_InstanceActorSwapper",
-			//Tracing, Detection
+			"PCG", "PCG_InstanceActorSwapper",
+			//Trace Detection
 			"MathPatterns", "TraceHelperFunctions",
 		});
 
@@ -32,11 +32,6 @@ public class V12_the_game : ModuleRules
 			"V12_the_game/Variant_Offroad",
 			"V12_the_game/Variant_TimeTrial",
 			"V12_the_game/Variant_TimeTrial/UI"
-		});
-
-        PublicIncludePaths.AddRange(new string[]
-		{
-            "V12_the_game",
 		});
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
