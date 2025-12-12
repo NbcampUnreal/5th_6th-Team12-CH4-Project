@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "V12_the_gamePawn.h"
+#include "Items/V12ItemBase.h"
+#include "Components/TimelineComponent.h"
+#include "Curves/CurveFloat.h"
 #include "V12_the_gameSportsCar.generated.h"
+
 
 /**
  *  Sports car wheeled vehicle implementation
@@ -17,4 +21,20 @@ class AV12_the_gameSportsCar : public AV12_the_gamePawn
 public:
 
 	AV12_the_gameSportsCar();
+
+	void BeginPlay() override;
+
+	void Tick(float DeltaTime) override;
+
+#pragma region Item System
+
+	// Boost
+	UFUNCTION()
+	void ActivateBoost(float BoostForce);
+
+	UFUNCTION()
+	void EndBoost();
+
+#pragma endregion
+
 };

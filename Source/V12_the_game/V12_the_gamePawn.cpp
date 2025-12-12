@@ -12,6 +12,8 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "V12_the_game.h"
 #include "TimerManager.h"
+#include "Items/V12InventoryComponent.h" 
+#include "Blueprint/UserWidget.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -52,6 +54,7 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
 
+	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -89,6 +92,9 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 		//Drifting
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Started, this, &AV12_the_gamePawn::StartDrifting);
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Completed, this, &AV12_the_gamePawn::StopDrifting);
+
+		// use item
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem);
 	}
 	else
 	{
@@ -103,9 +109,10 @@ void AV12_the_gamePawn::BeginPlay()
 	// set up the flipped check timer
 	GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AV12_the_gamePawn::FlippedCheck, FlipCheckTime, true);
 
+
 	VehicleMesh = GetMesh();
 
-	//Drift �⺻ ��
+	//Drift �⺻ ��
 
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
@@ -118,6 +125,29 @@ void AV12_the_gamePawn::BeginPlay()
 		DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
 		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
 		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
+
+	}
+
+	// 아이템 위젯 생성
+	if (ItemHUDWidgetClass)
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+		{
+			ItemWindowWidget = CreateWidget<UUserWidget>(PlayerController, ItemHUDWidgetClass);
+
+			ItemWindowWidget->AddToViewport();
+		}
+	}
+
+	if (ItemWindowWidget)
+	{
+		FName const FunctionName = FName(TEXT("InitializeItemWindow"));
+
+		if(UFunction* Function = ItemWindowWidget->FindFunction(FunctionName))
+		{
+			ItemWindowWidget->ProcessEvent(Function, nullptr);
+		}
+
 	}
 }
 
@@ -241,6 +271,7 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 	DoResetVehicle();
 }
 
+
 void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 {
 	DoHandbrakeStart();
@@ -283,6 +314,14 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 		ChaosVehicleMovement->Wheels[i]->CorneringStiffness = DefaultCorneringStiffness[i];
 	}
 }
+
+// 아이템 사용
+void AV12_the_gamePawn::UseItem(const FInputActionValue& Value)
+{
+	
+}
+
+
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {
