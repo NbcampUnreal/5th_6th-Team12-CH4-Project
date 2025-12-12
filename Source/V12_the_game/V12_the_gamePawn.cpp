@@ -12,6 +12,8 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "V12_the_game.h"
 #include "TimerManager.h"
+#include "Items/V12InventoryComponent.h" 
+#include "Blueprint/UserWidget.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -52,6 +54,7 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
 
+	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -85,6 +88,9 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 		// reset the vehicle 
 		EnhancedInputComponent->BindAction(ResetVehicleAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::ResetVehicle);
+
+		// use item
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem);
 	}
 	else
 	{
@@ -98,6 +104,27 @@ void AV12_the_gamePawn::BeginPlay()
 
 	// set up the flipped check timer
 	GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AV12_the_gamePawn::FlippedCheck, FlipCheckTime, true);
+
+	// 아이템 위젯 생성
+	if (ItemHUDWidgetClass)
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+		{
+			ItemWindowWidget = CreateWidget<UUserWidget>(PlayerController, ItemHUDWidgetClass);
+
+			ItemWindowWidget->AddToViewport();
+		}
+	}
+
+	if (ItemWindowWidget)
+	{
+		FName const FunctionName = FName(TEXT("InitializeItemWindow"));
+
+		if(UFunction* Function = ItemWindowWidget->FindFunction(FunctionName))
+		{
+			ItemWindowWidget->ProcessEvent(Function, nullptr);
+		}
+	}
 }
 
 void AV12_the_gamePawn::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -182,6 +209,13 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 	// route the input
 	DoResetVehicle();
 }
+
+// 아이템 사용
+void AV12_the_gamePawn::UseItem(const FInputActionValue& Value)
+{
+	
+}
+
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "V12ItemsData.h"
+#include "V12InventoryComponent.h"
 #include "V12ItemBox_DT.generated.h"
 
 class URotatingMovementComponent;
@@ -48,8 +49,10 @@ protected:
 		const FHitResult& SweepResult
 	);
 
+	FTimerHandle RespawnTimer;
+	//FV12ItemData* GetRandomItem();
+
 public:
 	virtual void Tick(float DeltaTime) override;
 
-	TSubclassOf<AV12ItemBase> GetRandomItem();
 };

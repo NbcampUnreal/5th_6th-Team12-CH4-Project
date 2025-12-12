@@ -28,21 +28,12 @@ public:
 
 #pragma region Item System
 
-	UPROPERTY(VisibleAnywhere)
-	TSubclassOf<AV12ItemBase> CurrentItem;
-
-	void SetItem(TSubclassOf<AV12ItemBase> NewItem);
-
-	void UseItem();
-
 	// Boost
 	UFUNCTION()
 	void ActivateBoost(float BoostForce);
 
 	UFUNCTION()
 	void EndBoost();
-
-	
 
 #pragma endregion
 

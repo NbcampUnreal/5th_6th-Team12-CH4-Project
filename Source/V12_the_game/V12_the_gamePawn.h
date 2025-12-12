@@ -10,6 +10,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
+class UV12InventoryComponent;
 struct FInputActionValue;
 
 /**
@@ -72,6 +73,10 @@ protected:
 	/** Reset Vehicle Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* ResetVehicleAction;
+
+	/** Use Item Action, 아이템 사용 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction;
 
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;
@@ -140,6 +145,9 @@ protected:
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
 
+	/** Handles use item input */
+	void UseItem(const FInputActionValue& Value);
+
 public:
 
 	/** Handle steering input by input actions or mobile interface */
@@ -182,6 +190,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoResetVehicle();
 
+#pragma region Items
+
+	//UFUNCTION(BlueprintCallable, Category = "Items")
+	//void AddItem(FName ItemID);
+
+
 protected:
 
 	/** Called when the brake lights are turned on or off */
@@ -192,7 +206,18 @@ protected:
 	UFUNCTION()
 	void FlippedCheck();
 
+private:
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
+
+	// 아이템창 UI 띄우기
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	UUserWidget* ItemWindowWidget;
+
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
+	UV12InventoryComponent* InventoryComponent;
+
 	/** Returns the front spring arm subobject */
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }
 	/** Returns the front camera subobject */

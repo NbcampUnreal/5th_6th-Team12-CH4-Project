@@ -1,34 +1,56 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
+// V12InventoryComponent.cpp
 
 #include "Items/V12InventoryComponent.h"
+#include "Blueprint/UserWidget.h"
 
-// Sets default values for this component's properties
 UV12InventoryComponent::UV12InventoryComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-
-// Called when the game starts
 void UV12InventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
-	
+	Items.SetNum(InventoryCapacity);
+
+	if (InventoryWidgetClass)
+	{
+		APlayerController* PlayerController = Cast<APlayerController>(GetOwner()->GetInstigatorController());
+
+		if (PlayerController)
+		{
+			InventoryWidget = CreateWidget<UUserWidget>(PlayerController, InventoryWidgetClass);
+		}
+	}
 }
 
-
-// Called every frame
-void UV12InventoryComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UV12InventoryComponent::AddItem(FName ItemID)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (ItemID == NAME_None) 
+	{
+		return;
+	}
 
-	// ...
+	for(int32 i = 0; i < Items.Num(); i++)
+	{
+		if (Items[i].ItemID == NAME_None)
+		{
+			Items[i].ItemID = ItemID;
+
+			if (GEngine)
+			{
+				FString const Msg = FString::Printf(TEXT("아이템 저장! Slot %d: %s"), i, *ItemID.ToString());
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
+			}
+
+			return;
+		}
+	}
+
+	if(GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("인벤토리가 가득 찼습니다!"));
+	}
 }
-

@@ -16,7 +16,7 @@ struct FV12ItemData : public FTableRowBase
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	FString ItemID;
+	FName ItemID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FString ItemName;
