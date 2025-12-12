@@ -5,6 +5,7 @@
 #include "V12_the_gameSportsWheelFront.h"
 #include "V12_the_gameSportsWheelRear.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Items/V12ItemBase.h"
 
 AV12_the_gameSportsCar::AV12_the_gameSportsCar()
 {
@@ -67,3 +68,33 @@ AV12_the_gameSportsCar::AV12_the_gameSportsCar()
 	GetChaosVehicleMovement()->SteeringSetup.SteeringType = ESteeringType::Ackermann;
 	GetChaosVehicleMovement()->SteeringSetup.AngleRatio = 0.7f;
 }
+
+void AV12_the_gameSportsCar::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void AV12_the_gameSportsCar::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+}
+
+#pragma region Item System
+
+void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
+{
+	UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
+	if (!RootComp) return;
+
+	FVector Forward = GetActorForwardVector();
+
+	// 차량에 큰 임펄스 적용 (질량 무시)
+	RootComp->AddImpulse(Forward * BoostForce, NAME_None, true);
+}
+
+void AV12_the_gameSportsCar::EndBoost()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Nitro End"));
+}
+
+#pragma endregion

@@ -10,6 +10,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
+class UV12InventoryComponent;
 struct FInputActionValue;
 
 /**
@@ -40,9 +41,11 @@ class AV12_the_gamePawn : public AWheeledVehiclePawn
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category ="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* BackCamera;
 
+	USkeletalMeshComponent* VehicleMesh;
+public:
 	/** Cast pointer to the Chaos Vehicle movement component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
-
 protected:
 
 	/** Steering Action */
@@ -73,6 +76,46 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* ResetVehicleAction;
 
+
+	//Drift
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DriftingAction;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftTorqueStrength = 200;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float MaxEngineTorque = 2000;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DefaultEngineTorque = 750;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftSideSlipModifier = 0.3f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftFrictionForceMultiplier = 0.4f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftCorneringStiffness = 0.3f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float CounterSteerStrength = 0.05f;
+
+	UPROPERTY(EditAnywhere, Category = "Drift")
+	float DriftForwardForce = 1000.f;
+
+	TArray<float> DefaultSideSlipModifier;
+	TArray<float> DefaultFrictionForceMultiplier;
+	TArray<float> DefaultCorneringStiffness;
+
+	bool bIsDrifting = false;
+
+	/** Use Item Action, 아이템 사용 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction;
+
+
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;
 
@@ -89,6 +132,7 @@ protected:
 
 	/** Flip check timer */
 	FTimerHandle FlipCheckTimer;
+
 
 public:
 	AV12_the_gamePawn();
@@ -140,6 +184,15 @@ protected:
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
 
+
+	//Drifting
+	void StartDrifting(const FInputActionValue& Value);
+	void StopDrifting(const FInputActionValue& Value);
+
+	/** Handles use item input */
+	void UseItem(const FInputActionValue& Value);
+
+
 public:
 
 	/** Handle steering input by input actions or mobile interface */
@@ -182,6 +235,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoResetVehicle();
 
+#pragma region Items
+
+	//UFUNCTION(BlueprintCallable, Category = "Items")
+	//void AddItem(FName ItemID);
+
+
 protected:
 
 	/** Called when the brake lights are turned on or off */
@@ -192,7 +251,18 @@ protected:
 	UFUNCTION()
 	void FlippedCheck();
 
+private:
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
+
+	// 아이템창 UI 띄우기
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	UUserWidget* ItemWindowWidget;
+
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
+	UV12InventoryComponent* InventoryComponent;
+
 	/** Returns the front spring arm subobject */
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }
 	/** Returns the front camera subobject */
