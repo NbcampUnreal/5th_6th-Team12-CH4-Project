@@ -2,7 +2,7 @@
 
 #include "Swapper/SwapperComponent.h"
 #include "Swapper/InstanceActorSwappingDataAsset.h" 
-#include "Swapper/MeshActorSwappingFunctions.h" 
+#include "Swapper/ISMC_SwapperFunctions.h" 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
@@ -25,7 +25,7 @@ void USwapperComponent::OnSwapInstanceToActor_Implementation(UInstancedStaticMes
 {
     //empty here
 }
-void USwapperComponent::OnSwapActorToInstance_Implementation(AActor* SwappedActor)
+void USwapperComponent::OnSwapActorToInstance_Implementation(AActor* SwappedActor, FTransform SwappedTransform, FName SwappedContext)
 {
     //empty there
 }
@@ -45,35 +45,43 @@ bool USwapperComponent::SetSwapperDetectorComp(UPrimitiveComponent* NewDetector)
     SwappableDetector->OnComponentEndOverlap.AddDynamic(this, &USwapperComponent::OnOverlapEnd);
     
     UE_LOG(SwapperComponent, Log,
-        TEXT("USwapperComponent::BeginPlay >> Overlap events bound"));
+        TEXT("USwapperComponent::SetSwapperDetectorComp >> Overlap events bound"));
     return true;
 }
 
+bool USwapperComponent::SetInteractionRangeComp(UPrimitiveComponent* InteractionComp)
+{
+    if (!InteractionComp)//invalid collision comp
+    {
+        UE_LOG(SwapperComponent, Error,
+            TEXT("USwapperComponent::SetInteractionRangeComp >> Invalid InteractionComp"));
+        return false;
+    }
 
+    InteractionDetector=InteractionComp;
+    InteractionDetector->OnComponentBeginOverlap.AddDynamic(this, &USwapperComponent::OnInteractionOverlapBegin);
+    
+    UE_LOG(SwapperComponent, Log,
+       TEXT("USwapperComponent::SetInteractionRangeComp >> InteractionComp settled"));
+    return true;
+}
 
 
 void USwapperComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                        int32 OtherBodyIndex, bool bFromSweep,const FHitResult& SweepResult)
 {
     UInstancedStaticMeshComponent* InstanceComponent = Cast<UInstancedStaticMeshComponent>(OtherComp);
-    if (!InstanceComponent)// Cast failed
+    if (!InstanceComponent || OtherBodyIndex == INDEX_NONE)
     {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("OnOverlapBegin >> OtherComp is not an ISMC --> Ignore."));
+        UE_LOG(SwapperComponent, Verbose, TEXT("OnOverlapBegin >> OtherComp is not a valid ISMC instance. Ignoring."));
         return; 
     }
-
-    if (OtherBodyIndex == INDEX_NONE)//Invalid Instance Index
-    {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("OnOverlapBegin >> OtherBodyIndex is INDEX_NONE. Not an ISMC instance --> Ignore"));
-        return;
-    }
  
-    if (SwappedActorsInfo.Contains(OtherActor))  // Actor already tracked
+    // Check if OtherActor already has a helper component
+    if (OtherActor->FindComponentByClass<USwapperHelperComponent>())
     {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("OnOverlapBegin >> Actor %s is already a swapped actor. Fuck it --> Ignore"),
+        // This is the case where a Swapped Actor overlaps a new Swapper Component. ignore it
+        UE_LOG(SwapperComponent, Log, TEXT("OnOverlapBegin >> Actor %s is a swapped actor (has helper). Ignoring BeginOverlap on this component."),
             *OtherActor->GetName());
         return;
     }
@@ -81,22 +89,31 @@ void USwapperComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,AActo
     FSwappingMeshActorPair RulePair;
     FName TargetName;
     FName ContextName;
-
-    // Use the Static Function Library for validation
-    if (!UMeshActorSwappingFunctions::IsInstanceSwappable(
-        InstanceComponent, 
-        OtherBodyIndex, 
-        SwapConfigDataAsset, // Pass the Data Asset
-        InteractionTag,// Pass the Interaction Tag
-        RulePair, 
-        TargetName, 
-        ContextName))
+    int32 VariationIndex = 0; 
+    
+    // Check if swappable and retrieve the rule
+    if (!UISMC_SwapperFunctions::IsInstanceSwappable(
+        InstanceComponent, OtherBodyIndex, SwapConfigDataAsset, InteractionTag,
+        RulePair, TargetName, ContextName, VariationIndex))
     {
-        // Validation failed 
         return; 
     }
+    
+    // no for mesh to mesh swap case
+    if (RulePair.bIsDirectInstanceSwap)
+    {
+        UE_LOG(SwapperComponent, Verbose, TEXT("OnOverlapBegin >> Rule is a Direct Swap. Ignoring in broad detector."));
+        return;
+    }
 
-    // swap the instance to a matching actor
+    // Check for valid Actor class for the full swap
+    if (!RulePair.ActorClassToSpawn)
+    {
+        UE_LOG(SwapperComponent, Warning, TEXT("OnOverlapBegin: Full Swap intended but no ActorClassToSpawn found. Skipping."));
+        return;
+    }
+    
+    // Execute the full swap (Instance to Actor)
     ExecuteSwapInstanceToActor(
         InstanceComponent,
         OtherBodyIndex,
@@ -105,35 +122,120 @@ void USwapperComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,AActo
         ContextName);
 }
 
-void USwapperComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComp,AActor* OtherActor, UPrimitiveComponent* OtherComp,int32 OtherBodyIndex)
+void USwapperComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-    FActorToInstanceSwapInfo* SwapInfoPtr = SwappedActorsInfo.Find(OtherActor);
-    if (!SwapInfoPtr) 
+    if (!GetOwner())
     {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("OnOverlapEnd >> OtherActor %s is not a tracked swapped actor. Ignoring."), *OtherActor->GetName());
+        UE_LOG(SwapperComponent, Verbose,
+           TEXT("USwapperComponent::OnOverlapEnd >> Invalid Owner."));
+        return; 
+    }
+    if (OtherActor->IsPendingKillPending())
+    {
+        UE_LOG(SwapperComponent, Verbose,
+           TEXT("USwapperComponent::OnOverlapEnd >> So close, it will destroyed after this tick"));
         return; 
     }
     
-    SwapInfoPtr->bActorLeftRange = true;
+    // Find the Helper component directly on the exiting Actor
+    USwapperHelperComponent* Helper = OtherActor->FindComponentByClass<USwapperHelperComponent>();
+    if (!Helper) 
+    {
+        UE_LOG(SwapperComponent, Error,
+            TEXT("OnOverlapEnd >> Actor %s is not a tracked swapped actor (no helper). Ignoring."),
+            *OtherActor->GetName());
+        return; 
+    }
     
-    if (SwapInfoPtr->bInteractionFinished)
+    bool bTaskIsRunning = Helper->IsProcessingTask();
+    
+    if (!bTaskIsRunning)
     {
         UE_LOG(SwapperComponent, Log,
-            TEXT("USwapperComponent::OnOverlapEnd >> Interaction finished previously. Initiating immediate SwapActorToInstance."));
-        ExecuteSwapActorToInstance(OtherActor);
+            TEXT("USwapperComponent::OnOverlapEnd >> Task inactive/finished. Initiating immediate SwapActorToInstance (cleanup)."));
+        // Call the helper's signal, which triggers the delegate, which calls ExecuteSwapActorToInstance_DelegateEntry
+
+        FTransform CurrentTransform=Helper->GetCurrentTransform();
+        FName Context = Helper->GetFinalContextName();
+        Helper->SignalSwapCompletion(CurrentTransform, Context); 
+    }
+    else
+    {
+        UE_LOG(SwapperComponent, Log,
+            TEXT("USwapperComponent::OnOverlapEnd >> Task is active. Waiting for SignalSwapCompletion from helper on %s."),
+            *OtherActor->GetName());
     }
 }
 
-void USwapperComponent::ExecuteSwapInstanceToActor(UInstancedStaticMeshComponent* InstanceComponent, 
-    int32 InstanceIndex, TSubclassOf<AActor> ActorClassToSpawn, FName TargetName, FName ContextName)
+void USwapperComponent::OnInteractionOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+    UInstancedStaticMeshComponent* InstanceComponent = Cast<UInstancedStaticMeshComponent>(OtherComp);
+    if (!InstanceComponent || OtherBodyIndex == INDEX_NONE) return; 
+
+    // Skip if already swapped (Actor has a helper component)
+    if (OtherActor->FindComponentByClass<USwapperHelperComponent>()) return;
+
+    FSwappingMeshActorPair RulePair;
+    FName TargetName, ContextName;
+    int32 VariationIndex = 0; 
+    
+    // Check if swappable and retrieve the rule
+    if (!UISMC_SwapperFunctions::IsInstanceSwappable(
+        InstanceComponent, OtherBodyIndex, SwapConfigDataAsset, InteractionTag,
+        RulePair, TargetName, ContextName, VariationIndex))
+    {
+        return; 
+    }
+    
+    if (!RulePair.bIsDirectInstanceSwap)
+    {
+        UE_LOG(SwapperComponent, Error,
+            TEXT("InteractionOverlap: Rule is a Full Actor Swap. Ignoring in small detector."));
+        return;
+    }
+    
+    UStaticMesh* TargetMesh = RulePair.ResultStaticMesh.LoadSynchronous();
+    if (!TargetMesh)
+    {
+        UE_LOG(SwapperComponent, Error,
+            TEXT("InteractionOverlap: Direct Swap rule found but ResultStaticMesh is NULL. Aborting."));
+        return;
+    }
+
+    FTransform InstanceTransform;
+    if (!InstanceComponent->GetInstanceTransform(OtherBodyIndex, InstanceTransform, true)) return; 
+
+    // Execute the fast swap and exit.
+    UISMC_SwapperFunctions::ExecuteSwapInstancedMesh_AtoB(
+        InstanceComponent,
+        OtherBodyIndex,
+        TargetMesh,
+        InstanceTransform
+    );
+    
+    UE_LOG(SwapperComponent, Log,
+        TEXT("InteractionOverlap >> Direct Instance-to-Instance swap completed."));
+}
+
+void USwapperComponent::ExecuteSwapInstanceToActor(UInstancedStaticMeshComponent* InstanceComponent, 
+                                                   int32 InstanceIndex, TSubclassOf<AActor> ActorClassToSpawn, FName TargetName, FName ContextName)
+{
+    if (!GetOwner())
+    {
+        UE_LOG(SwapperComponent, Error,
+           TEXT("USwapperComponent::ExecuteSwapInstanceToActor >> Invalid Owner."));
+        return;
+    }
+    
     AActor* NewActor = nullptr;
     FName InstancingComponentPath = NAME_None;
     FTransform OriginalTransform = FTransform::Identity;
     UStaticMesh* OriginalMesh = nullptr; 
     
-    bool bSuccess = UMeshActorSwappingFunctions::ExecuteSwapInstanceToActor(
+    // 1. Perform low-level swap (Remove instance, spawn actor)
+    bool bSuccess = UISMC_SwapperFunctions::ExecuteSwapInstanceToActor(
         InstanceComponent, 
         InstanceIndex, 
         ActorClassToSpawn,
@@ -143,150 +245,133 @@ void USwapperComponent::ExecuteSwapInstanceToActor(UInstancedStaticMeshComponent
         OriginalMesh
     );
     
-    if (!bSuccess) 
+        if (!bSuccess || !NewActor) 
     {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapInstanceToActor >> UMeshActorSwappingFunctions::ExecuteSwapInstanceToActor failed. Aborting."));
+        UE_LOG(SwapperComponent, Error, TEXT("ExecuteSwapInstanceToActor >> Low-level swap failed. Aborting."));
         return; 
     }
     
-    if (!NewActor)
-    {
-        UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapInstanceToActor >> Static function succeeded but returned null NewActor. Aborting."));
-        return; 
-    }
-
-    // Make new swap info to pass on
-    FActorToInstanceSwapInfo NewSwapInfo;
-    NewSwapInfo.InstancingComponentPathName = InstancingComponentPath;
-    NewSwapInfo.InstanceIndex = InstanceIndex;
-    NewSwapInfo.TargetName = TargetName;
-    NewSwapInfo.OriginalContextName = ContextName;
-    NewSwapInfo.ChangedInstanceTransform = OriginalTransform; 
-    NewSwapInfo.OriginalStaticMesh = OriginalMesh; 
-    
-    //Initialize the actor's swapping helper
     USwapperHelperComponent* Helper = NewActor->FindComponentByClass<USwapperHelperComponent>();
-    if (!Helper)// actor has no swapping helper comp
+    if (!Helper)
     {
-        // Cleanup
+        // CRITICAL FAILURE: Cleanup (Revert ISMC swap and destroy actor)
         UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapInstanceToActor >> NewActor %s is missing SwapperHelperComponent. Reverting ISMC swap and destroying actor."), *NewActor->GetName());
-        UMeshActorSwappingFunctions::ExecuteSwapActorToInstance(
+            TEXT("ExecuteSwapInstanceToActor >> NewActor %s is missing SwapperHelperComponent. Reverting."), *NewActor->GetName());
+        UISMC_SwapperFunctions::ExecuteSwapActorToInstance(
             InstancingComponentPath, InstanceIndex, OriginalMesh, OriginalTransform, false);
         NewActor->Destroy();
         return;
     }
-    NewSwapInfo.SwapperHelper = Helper;
-    Helper->InitializeSwapContext(TargetName, ContextName, InstanceComponent);
 
-    // Bind back to the execution function (which is the entry point for swap back)
-    Helper->OnReadyToSwapBack.AddDynamic(this, &USwapperComponent::ExecuteSwapActorToInstance);
-
-    SwappedActorsInfo.Add(NewActor, NewSwapInfo);
+    // Initialize helper with persistent data (New signature)
+    Helper->InitializeSwapContext(
+        ContextName,// InContextName (Initial Context)
+        0,// InContextVariationIndex (Placeholder: We only use Index 0 for swap-out matching)
+        InstanceComponent,
+        InstancingComponentPath,
+        InstanceIndex,
+        OriginalMesh
+    );
     
-    // notify on virtual function
+    Helper->SetTargetName(TargetName); 
+    Helper->OnReadyToSwapBack.AddDynamic(this, &USwapperComponent::ExecuteSwapActorToInstance_DelegateEntry);
+
+    // 4. Notify on virtual function
     OnSwapInstanceToActor(InstanceComponent, InstanceIndex, ActorClassToSpawn, TargetName, ContextName);
 
     UE_LOG(SwapperComponent, Log,
-        TEXT("ExecuteSwapInstanceToActor >> Swap to Actor complete. Actor: %s. OnSwap virtual hook triggered."),
+        TEXT("ExecuteSwapInstanceToActor >> Swap complete. Actor: %s. Helper Initialized."),
         *NewActor->GetName());
 }
 
-void USwapperComponent::ExecuteSwapActorToInstance(AActor* SwappedActor)
+
+void USwapperComponent::ExecuteSwapActorToInstance(AActor* SwappedActor, const FTransform& FinalTransform, FName FinalContextName)
 {
-    if (!SwappedActor) 
+    if (!GetOwner())
     {
         UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapActorToInstance >> Invalid SwappedActor input (nullptr). Aborting."));
+           TEXT("USwapperComponent::ExecuteSwapInstanceToActor >> Invalid Owner."));
+        return;
+    }
+    
+    if (!SwappedActor) 
+    {
+        UE_LOG(SwapperComponent, Error, TEXT("ExecuteSwapActorToInstance >> Invalid SwappedActor input (nullptr). Aborting."));
         return;
     }
 
-    FActorToInstanceSwapInfo* SwapInfoPtr = SwappedActorsInfo.Find(SwappedActor);
-    if (!SwapInfoPtr) 
+    USwapperHelperComponent* Helper = SwappedActor->FindComponentByClass<USwapperHelperComponent>();
+    if (!Helper) 
     {
         UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapActorToInstance >> Could not find swap info for actor %s. Aborting."),
+            TEXT("ExecuteSwapActorToInstance >> Could not find SwapperHelper on actor %s. Cannot retrieve info. Aborting."),
             *SwappedActor->GetName());
+        SwappedActor->Destroy();
         return;
     } 
-    
-    SwapInfoPtr->bInteractionFinished = true;
-    if (!SwapInfoPtr->bActorLeftRange) 
-    {
-        UE_LOG(SwapperComponent, Log,
-            TEXT("ExecuteSwapActorToInstance >> Interaction finished, but actor %s is still in range. Waiting for OnOverlapEnd."),
-            *SwappedActor->GetName());
-        return; 
-    } 
-    
-    FActorToInstanceSwapInfo FinalSwapInfo = *SwapInfoPtr;
-    UStaticMesh* OriginalMesh = FinalSwapInfo.OriginalStaticMesh.Get();
+
+    //  Retrieve persistent data from the Helper
+    const FName InstancingComponentPath = Helper->GetISMCPathName();
+    const int32 InstanceIndex = Helper->GetInstanceIndex();
+    UStaticMesh* OriginalMesh = Helper->GetPreviousMesh().LoadSynchronous(); // Load soft pointer
+    const FName TargetName = Helper->GetTargetName();
+    const bool bDidChangeHappened = Helper->HasChangeOccurred();
     
     if (!OriginalMesh)
     {
         UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapActorToInstance >> OriginalMesh reference is invalid for actor %s. Aborting cleanup."),
+            TEXT("ExecuteSwapActorToInstance >> CRITICAL: OriginalMesh reference is invalid for actor %s. Aborting cleanup."),
             *SwappedActor->GetName());
-        SwappedActorsInfo.Remove(SwappedActor);
         SwappedActor->Destroy();
         return;
     }
     
-    FName FinalContextName = FinalSwapInfo.SwapperHelper->GetFinalContextName();
-    FinalSwapInfo.ChangedInstanceTransform = SwappedActor->GetActorTransform();
-
     FSwappingMeshActorPair FinalRulePair;
     UStaticMesh* FinalMeshAsset = nullptr;
-    
-    // Find final mesh asset
-    
-    //Context matches final state
-    if (UMeshActorSwappingFunctions::FindRuleForMeshAndIndex(
-        OriginalMesh, 0, SwapConfigDataAsset, FinalRulePair, FinalSwapInfo.TargetName, FinalContextName))
+
+    // Find the final mesh asset using the actor's current state (FinalContextName)
+    if (UISMC_SwapperFunctions::FindRuleForContextAndTarget(
+            SwapConfigDataAsset, 
+            TargetName, 
+            FinalContextName, 
+            FinalRulePair))
     {
-        FinalMeshAsset = FinalRulePair.StaticMesh.LoadSynchronous();
-        FinalSwapInfo.bDidChangeHappened = (FinalContextName != FinalSwapInfo.OriginalContextName);
-        UE_LOG(SwapperComponent, Log, TEXT("ExecuteSwapActorToInstance >> Found rule using FinalContext: %s."), *FinalContextName.ToString());
+        // Use the new, correctly named field: ResultStaticMesh
+        FinalMeshAsset = FinalRulePair.ResultStaticMesh.LoadSynchronous(); 
+        
+        UE_LOG(SwapperComponent, Log,
+            TEXT("ExecuteSwapActorToInstance >> Found final mesh using FinalContext: %s and Mesh: %s."),
+            *FinalContextName.ToString(),
+            *FinalMeshAsset->GetName());
     }
-    //Fallback to Original Context if match failed
     else 
     {
+        // CRITICAL FALLBACK: If the final state wasn't in the Data Asset, use the Original Mesh itself
         UE_LOG(SwapperComponent, Warning,
-            TEXT("ExecuteSwapActorToInstance >> Final context rule lookup failed. Attempting fallback to OriginalContext: %s."),
-            *FinalSwapInfo.OriginalContextName.ToString());
-        if (UMeshActorSwappingFunctions::FindRuleForMeshAndIndex(
-            OriginalMesh,
-            0,
-            SwapConfigDataAsset,
-            FinalRulePair,
-            FinalSwapInfo.TargetName,
-            FinalSwapInfo.OriginalContextName))
-        {
-             FinalMeshAsset = FinalRulePair.StaticMesh.LoadSynchronous();
-             FinalSwapInfo.bDidChangeHappened = false; 
-             UE_LOG(SwapperComponent, Log,
-                 TEXT("ExecuteSwapActorToInstance >> Fallback rule found."));
-        }
+            TEXT("ExecuteSwapActorToInstance >> Final context rule lookup failed for %s/%s. Falling back to Original Mesh: %s."),
+            *TargetName.ToString(),
+            *FinalContextName.ToString(),
+            *OriginalMesh->GetName());
+        
+        FinalMeshAsset = OriginalMesh; 
     }
     
     if (!FinalMeshAsset)
     {
         UE_LOG(SwapperComponent, Error,
-            TEXT("ExecuteSwapActorToInstance: CRITICAL - Failed to find any mesh for restoration for actor %s. Cleanup initiated."),
+            TEXT("ExecuteSwapActorToInstance: CRITICAL - Failed to determine any mesh for restoration for actor %s. Cleanup initiated."),
             *SwappedActor->GetName());
-        SwappedActorsInfo.Remove(SwappedActor);
         SwappedActor->Destroy();
         return;
     }
     
-    if (!UMeshActorSwappingFunctions::ExecuteSwapActorToInstance(
-        FinalSwapInfo.InstancingComponentPathName,
-        FinalSwapInfo.InstanceIndex,
+    // 3. Execute the low-level swap back
+    if (!UISMC_SwapperFunctions::ExecuteSwapActorToInstance(
+        InstancingComponentPath,
+        InstanceIndex,
         FinalMeshAsset,
-        FinalSwapInfo.ChangedInstanceTransform,
-        FinalSwapInfo.bDidChangeHappened
+        FinalTransform,
+        bDidChangeHappened
     ))
     {
         UE_LOG(SwapperComponent, Error,
@@ -294,16 +379,22 @@ void USwapperComponent::ExecuteSwapActorToInstance(AActor* SwappedActor)
             *SwappedActor->GetName());
     }
 
-    //Notify
-    OnSwapActorToInstance(SwappedActor);
-
-    // Cleanup
-    FinalSwapInfo.SwapperHelper->OnReadyToSwapBack.RemoveDynamic(this, &USwapperComponent::ExecuteSwapActorToInstance);
-    SwappedActorsInfo.Remove(SwappedActor);
+    // Notify
+    OnSwapActorToInstance(SwappedActor,FinalTransform,FinalContextName);
     
+    // Cleanup
+    // Unbind the delegate before destroying the actor
+    Helper->OnReadyToSwapBack.RemoveDynamic(this, &USwapperComponent::ExecuteSwapActorToInstance_DelegateEntry);
+
     UE_LOG(SwapperComponent, Log,
         TEXT("ExecuteSwapActorToInstance >> Swap to ISMC complete. Actor %s destroyed."),
         *SwappedActor->GetName());
 
     SwappedActor->Destroy();
+}
+
+void USwapperComponent::ExecuteSwapActorToInstance_DelegateEntry(AActor* SwappedActor, const FTransform& FinalTransform, FName FinalContextName)
+{
+    // Simply reroute to the main execution function with the required data
+    ExecuteSwapActorToInstance(SwappedActor, FinalTransform, FinalContextName);
 }
