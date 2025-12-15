@@ -23,7 +23,9 @@ public class V12_the_game : ModuleRules
 			"PCG", "PCG_InstanceActorSwapper",
 			//Trace Detection
 			"MathPatterns", "TraceHelperFunctions",
-		});
+			//Niagara
+            "Niagara",
+        });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"V12_the_game",

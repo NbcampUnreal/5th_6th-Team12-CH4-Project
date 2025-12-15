@@ -11,6 +11,11 @@ class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
 class UV12InventoryComponent;
+class USoundBase;
+class UAudioComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
+
 struct FInputActionValue;
 
 /**
@@ -46,6 +51,29 @@ public:
 	/** Cast pointer to the Chaos Vehicle movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
+
+	//audio
+	UPROPERTY(VisibleAnywhere, Category = "Audio")
+	UAudioComponent* SideScrapeAudio;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	USoundBase* SideScrapeSound;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	USoundBase* FrontImpactSound;
+
+	//effect
+	UPROPERTY(VisibleAnywhere, Category = "Effect")
+	UNiagaraComponent* SideScrapeEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Effect")
+	UNiagaraSystem* SideScrapeEffectAsset;
+
+	UPROPERTY(EditAnywhere, Category = "Effect")
+	float MinScrapeSpeedKmh = 30.f;
+
+	float GroundNormalThreshold = 0.75f;
+
 protected:
 
 	/** Steering Action */
@@ -110,6 +138,16 @@ protected:
 	TArray<float> DefaultCorneringStiffness;
 
 	bool bIsDrifting = false;
+
+	//Collision
+	float SideDotThreshold = 0.6f;
+
+	UPROPERTY(EditAnywhere, Category = "Collision")
+	float StrongImpactThreshold = 80000.f;
+
+	float ScrapeStopDelay = 0.15f;
+
+	FTimerHandle ScrapeStopTimer;
 
 	/** Use Item Action, 아이템 사용 */
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -192,7 +230,16 @@ protected:
 	/** Handles use item input */
 	void UseItem(const FInputActionValue& Value);
 
+	UFUNCTION()
+	void OnVehicleHit(
+		UPrimitiveComponent* HitComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		FVector NormalImpulse,
+		const FHitResult& Hit
+	);
 
+	void StopSideScrape();
 public:
 
 	/** Handle steering input by input actions or mobile interface */
@@ -273,4 +320,7 @@ public:
 	FORCEINLINE UCameraComponent* GetBackCamera() const { return BackCamera; }
 	/** Returns the cast Chaos Vehicle Movement subobject */
 	FORCEINLINE const TObjectPtr<UChaosWheeledVehicleMovementComponent>& GetChaosVehicleMovement() const { return ChaosVehicleMovement; }
+
+	UFUNCTION(BlueprintCallable, Category = "Vehicle")
+	float GetSpeedKmh() const;
 };
