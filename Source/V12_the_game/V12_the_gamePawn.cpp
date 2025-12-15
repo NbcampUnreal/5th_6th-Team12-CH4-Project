@@ -112,7 +112,7 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//Drift �⺻ ��
+	//Drift
 
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
