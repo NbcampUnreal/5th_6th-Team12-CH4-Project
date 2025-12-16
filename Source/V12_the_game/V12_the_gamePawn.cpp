@@ -70,6 +70,11 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	SideScrapeEffect->SetupAttachment(RootComponent);
 	SideScrapeEffect->SetAutoActivate(false);
 
+	//camera effect
+	SpeedEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpeedEffect"));
+	SpeedEffect->SetupAttachment(BackCamera);
+	SpeedEffect->SetAutoActivate(false);
+
 	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
 
@@ -161,6 +166,15 @@ void AV12_the_gamePawn::BeginPlay()
 		SideScrapeEffect->SetAsset(SideScrapeEffectAsset);
 	}
 
+	//camera
+	BackSpringArm->TargetArmLength = DefaultCameraDistance;
+	BackCamera->SetFieldOfView(DefaultFOV);
+
+	if (SpeedEffectAsset)
+	{
+		SpeedEffect->SetAsset(SpeedEffectAsset);
+	}
+
 	// 아이템 위젯 생성
 	if (ItemHUDWidgetClass)
 	{
@@ -206,6 +220,79 @@ void AV12_the_gamePawn::Tick(float Delta)
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
 
+	const float SpeedKmh = GetSpeedKmh();
+
+	float TargetDistance = DefaultCameraDistance;
+	float TargetFOV = DefaultFOV;
+
+	if (SpeedKmh >= MinScrapeSpeedKmh)
+	{
+		float SpeedAlpha = FMath::Clamp(
+			(SpeedKmh - MinScrapeSpeedKmh / 100.f),
+			0.f,
+			1.f
+		);
+
+		TargetDistance = FMath::Lerp(
+			DefaultCameraDistance,
+			MaxCameraDistance,
+			SpeedAlpha
+		);
+
+		TargetFOV = FMath::Lerp(
+			DefaultFOV,
+			MaxFOV,
+			SpeedAlpha
+		);
+
+	}
+	BackSpringArm->TargetArmLength = FMath::FInterpTo(
+		BackSpringArm->TargetArmLength,
+		TargetDistance,
+		Delta,
+		CameraZoomInterpSpeed
+	);
+
+	BackCamera->SetFieldOfView(
+		FMath::FInterpTo(
+			BackCamera->FieldOfView,
+			TargetFOV,
+			Delta,
+			FOVInterpSpeed
+		)
+	);
+
+	if (!bFrontCameraActive)
+	{
+		if (SpeedKmh >= MinScrapeSpeedKmh)
+		{
+			if (!SpeedEffect->IsActive())
+			{
+				SpeedEffect->Activate();
+			}
+
+			SpeedEffect->SetFloatParameter(
+				TEXT("SpeedRatio"),
+				FMath::Clamp(SpeedKmh / 200.f, 0.2f, 1.f)
+			);
+		}
+		else
+		{
+			if (SpeedEffect->IsActive())
+			{
+				SpeedEffect->Deactivate();
+			}
+		}
+	}
+	else
+	{
+		if (SpeedEffect->IsActive())
+		{
+			SpeedEffect->Deactivate();
+		}
+	}
+
+
 	if (ChaosVehicleMovement)
 	{
 		float RPM = ChaosVehicleMovement->GetEngineRotationSpeed();
@@ -242,6 +329,8 @@ void AV12_the_gamePawn::Tick(float Delta)
 
 		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
 	}
+
+
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)

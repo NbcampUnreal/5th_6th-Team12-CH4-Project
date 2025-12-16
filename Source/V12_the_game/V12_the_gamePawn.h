@@ -74,6 +74,31 @@ public:
 
 	float GroundNormalThreshold = 0.75f;
 
+	//camera effect
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float DefaultCameraDistance = 650.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float MaxCameraDistance = 900.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float CameraZoomInterpSpeed = 2.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float DefaultFOV = 90.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float MaxFOV = 105.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float FOVInterpSpeed = 6.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	UNiagaraComponent* SpeedEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	UNiagaraSystem* SpeedEffectAsset;
+
 protected:
 
 	/** Steering Action */
