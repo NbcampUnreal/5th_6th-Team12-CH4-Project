@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Swapper/InstanceActorSwappingDataAsset.h" 
-#include "MeshActorSwappingFunctions.generated.h"
+#include "ISMC_SwapperFunctions.generated.h"
 
 // Forward Declares
 class UInstancedStaticMeshComponent;
@@ -12,7 +12,7 @@ class UStaticMesh;
 
 
 UCLASS()
-class PCG_INSTANCEACTORSWAPPER_API UMeshActorSwappingFunctions : public UBlueprintFunctionLibrary
+class PCG_INSTANCEACTORSWAPPER_API UISMC_SwapperFunctions : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 
@@ -27,7 +27,8 @@ public:
         FName InteractionTag,
         FSwappingMeshActorPair& OutRulePair, 
         FName& OutTargetName, 
-        FName& OutContextName
+        FName& OutContextName,
+        int32& OutContextVariationIndex
     );
     
     UFUNCTION(BlueprintCallable, Category = "Swapper|Logic")
@@ -49,26 +50,41 @@ public:
         const FTransform& FinalTransform,
         bool bDidChangeHappened
     );
+
+    UFUNCTION(BlueprintCallable, Category = "Swapper|Logic")
+    static bool ExecuteSwapInstancedMesh_AtoB(
+        UInstancedStaticMeshComponent* Original_ISMC,
+        int32 InstanceIndex,
+        UStaticMesh* TargetMeshAsset,
+        const FTransform& TargetTransform);
+
     
     UFUNCTION(BlueprintPure, Category = "Swapper|Logic")
     static bool FindRuleForMeshAndIndex(
-        UStaticMesh* Mesh, 
-        int32 InstanceIndex, 
+        UStaticMesh* Mesh,
         UInstanceActorSwappingDataAsset* SwapConfigDataAsset,
-        FSwappingMeshActorPair& OutRulePair, 
-        FName& OutTargetName, 
-        FName& OutContextName
+        FSwappingMeshActorPair& OutRulePair,
+        FName& OutTargetName,
+        FName& OutContextName,
+        int32& OutVariationIndex
     );
+
+    UFUNCTION(BlueprintCallable, Category = "Swapper Functions")
+    static bool FindRuleForContextAndTarget(
+        UInstanceActorSwappingDataAsset* SwapConfigDataAsset,
+        FName TargetName,
+        FName ContextName,
+        FSwappingMeshActorPair& OutRulePair);
     
     static UStaticMesh* GetStaticMeshAsset(UInstancedStaticMeshComponent* Component);
 
     static UInstancedStaticMeshComponent* FindISMCByPath(FName InstancingComponentPath);
 
-    static void FinalizeSwapBack(
-        UInstancedStaticMeshComponent* ISMC, 
-        const FTransform& ChangedInstanceTransform, 
-        int32 InstanceIndex, 
-        UStaticMesh* FinalMeshAsset, 
-        bool bDidChangeHappened
-    );
+
+    static UInstancedStaticMeshComponent* FindOrCreateNewISMC(
+        AActor* PCG_Volume,
+        UStaticMesh* TargetMeshAsset);
+    
+    UFUNCTION(BlueprintCallable, Category = "Mesh Actor Swapping")
+    static AActor* GetISMCOwnerActor(const FName& ComponentPathName);// in this pcg project, a pcg volume which have the ismc
 };

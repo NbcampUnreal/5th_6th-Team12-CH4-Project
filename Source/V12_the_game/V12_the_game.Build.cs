@@ -25,7 +25,8 @@ public class V12_the_game : ModuleRules
 			"MathPatterns", "TraceHelperFunctions",
 			//Niagara
             "Niagara",
-        });
+			//"MathPatterns", "TraceHelperFunctions",// unfinished code removed
+		});
 
 		PublicIncludePaths.AddRange(new string[] {
 			"V12_the_game",

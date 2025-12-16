@@ -19,22 +19,45 @@ USTRUCT(BlueprintType)
 struct FSwappingMeshActorPair
 {
 	GENERATED_BODY()
-	
-	//Mesh to be instanced
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo")
-	TSoftObjectPtr<UStaticMesh> StaticMesh = nullptr; 
     
-	//Actor Class to spawn
+	// THE RESULT MESH: The mesh to be instanced after the swap
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Result")
+	TSoftObjectPtr<UStaticMesh> ResultStaticMesh = nullptr; 
+    
+	// Actor Class to spawn
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo")
 	TSubclassOf<AActor> ActorClassToSpawn = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Actor Logic")
+	bool bIsPermanentActor = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Direct Swap")
+	bool bIsDirectInstanceSwap = false;
 };
 
 USTRUCT(BlueprintType)
-struct FSwappingVariationMap
+struct FSwappingTransformationRule
+{
+    GENERATED_BODY()
+    
+    // THE INPUT MESH (The key used to search)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Key")
+    TSoftObjectPtr<UStaticMesh> InputMeshKey = nullptr; 
+    
+    // The index is now part of the rule itself
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Key")
+    int32 VariationIndex = 0; 
+    
+    // The output instructions
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo|Result")
+    FSwappingMeshActorPair OutputRule;
+};
+
+USTRUCT(BlueprintType)
+struct FSwappingVariationRules
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo")
-	TMap<int32/*variation index*/, FSwappingMeshActorPair> VariationMap;
+	TArray< FSwappingTransformationRule> RuleList;
 };
 
 USTRUCT(BlueprintType)
@@ -43,7 +66,7 @@ struct FSwappingMeshActorInfo
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SwappingInfo")
-	TMap<FName/*Interaction Context*/, FSwappingVariationMap/*Static mesh, Actor class*/> MeshActorMap;
+	TMap<FName/*Interaction Context*/, FSwappingVariationRules/*list of rules*/> MeshActorMap;
 };
 
 
