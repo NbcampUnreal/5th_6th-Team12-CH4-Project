@@ -77,10 +77,77 @@ void AV12_the_gameSportsCar::BeginPlay()
 void AV12_the_gameSportsCar::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+
+	if (!bWaitingForLanding) return;
+
+	if (IsVehicleLanded())
+	{
+		bWaitingForLanding = false;
+
+		// 착지 후 1초 대기
+		GetWorldTimerManager().SetTimer(
+			ControlDisableTimer,
+			this,
+			&AV12_the_gameSportsCar::EnableControl,
+			DisableControlDuration,
+			false
+		);
+
+		UE_LOG(LogTemp, Warning, TEXT("Vehicle Landed - Control will enable in 1s"));
+	}
 }
 
 #pragma region Item System
 
+// Car Launch And Spin
+void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
+{
+	UPrimitiveComponent* CarMesh =
+		Cast<UPrimitiveComponent>(GetRootComponent());
+
+	if (!CarMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LaunchAndSpin: VehicleMesh invalid"));
+		return;
+	}
+
+	CarMesh->WakeAllRigidBodies();
+
+	// ===== 날아가는 방향 =====
+	FVector Dir = GetActorLocation() - HitLocation;
+	Dir.Z = 0.f;
+	Dir.Normalize();
+
+	// ===== 선형 임펄스 (위 + 뒤) =====
+	FVector LaunchImpulse =
+		Dir * HorizontalImpulse +
+		FVector(0.f, 0.f, VerticalImpulse);
+
+	CarMesh->AddImpulse(
+		LaunchImpulse,
+		NAME_None,
+		true   // 질량 무시
+	);
+
+	// ===== 회전 임펄스 (한 바퀴) =====
+	FVector AngularImpulse =
+		GetActorRightVector() * SpinImpulse;
+
+	CarMesh->AddAngularImpulseInRadians(
+		AngularImpulse,
+		NAME_None,
+		true
+	);
+	
+	// ===== 조작 비활성 =====
+	bControlDisabled = true;
+	bWaitingForLanding = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("Control Disabled, waiting for landing"));
+}
+
+// StartBoost
 void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 {
 	UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
@@ -92,9 +159,37 @@ void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 	RootComp->AddImpulse(Forward * BoostForce, NAME_None, true);
 }
 
+// EndBoost
 void AV12_the_gameSportsCar::EndBoost()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Nitro End"));
+}
+
+// 미구현
+void AV12_the_gameSportsCar::EnableControl()
+{
+	bControlDisabled = false;
+
+	UE_LOG(LogTemp, Warning, TEXT("Control Enabled"));
+}
+
+// CarLanded
+bool AV12_the_gameSportsCar::IsVehicleLanded() const
+{
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0, 0, 150.f);
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	return GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		Start,
+		End,
+		ECC_Visibility,
+		Params
+	);
 }
 
 #pragma endregion

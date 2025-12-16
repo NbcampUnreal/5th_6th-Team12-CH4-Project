@@ -8,7 +8,7 @@ void AV12LobbyPlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    // ·Îºñ UI ¶ç¿ì±â
+    // ï¿½Îºï¿½ UI ï¿½ï¿½ï¿½ï¿½
     //if (IsLocalController() && LobbyWidgetClass)
     //{
     //    LobbyWidgetInstance = CreateWidget<ULobbyWidget>(this, LobbyWidgetClass);
@@ -18,7 +18,7 @@ void AV12LobbyPlayerController::BeginPlay()
     //    }
     //}
 
-    // ´Ð³×ÀÓÀ» ¼­¹ö·Î º¸³»±â
+    // ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     if (IsLocalController())
     {
         if (UGameInstance* GI = GetGameInstance())
@@ -36,7 +36,7 @@ void AV12LobbyPlayerController::BeginPlay()
 
 void AV12LobbyPlayerController::Server_SendNicknameToServer_Implementation(const FString& InNickname)
 {
-    // ¼­¹ö¿¡¼­ PlayerState¿¡ ´Ð³×ÀÓ ÀúÀå
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PlayerStateï¿½ï¿½ ï¿½Ð³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (AV12PlayerState* PS = GetPlayerState<AV12PlayerState>())
     {
         PS->SetPlayerNameOnServer(InNickname);

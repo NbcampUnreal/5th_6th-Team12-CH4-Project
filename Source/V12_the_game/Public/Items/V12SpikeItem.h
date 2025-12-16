@@ -18,12 +18,14 @@ class V12_THE_GAME_API AV12SpikeItem : public AV12ItemBase
 	
 	AV12SpikeItem()
 	{
+		ItemID = "ST";
 		ItemName = "Spike Trap";
 	}
+
+public:
 
 	virtual void UseItem(AActor* TargetActor) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Spike")
 	TSubclassOf<AV12SpikeTrap> SpikeTrapClass;
-
 };

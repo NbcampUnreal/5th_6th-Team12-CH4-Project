@@ -16,7 +16,7 @@ void AV12PlayerState::SetPlayerNameOnServer(const FString& NewName)
 
 void AV12PlayerState::OnRep_LobbyPlayerName()
 {
-    // UI °»½Å Æ®¸®°Å°¡ ÇÊ¿äÇÏ¸é ¿©±â¿¡¼­ BP ÀÌº¥Æ® È£Ãâµµ °¡´É
+    // UI ï¿½ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½Å°ï¿½ ï¿½Ê¿ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½â¿¡ï¿½ï¿½ BP ï¿½Ìºï¿½Æ® È£ï¿½âµµ ï¿½ï¿½ï¿½ï¿½
 }
 
 void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const

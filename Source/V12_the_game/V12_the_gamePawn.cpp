@@ -14,6 +14,7 @@
 #include "TimerManager.h"
 #include "Items/V12InventoryComponent.h" 
 #include "Blueprint/UserWidget.h"
+#include "V12_the_gamePlayerController.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -53,8 +54,6 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
-
-	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -93,8 +92,12 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Started, this, &AV12_the_gamePawn::StartDrifting);
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Completed, this, &AV12_the_gamePawn::StopDrifting);
 
-		// use item
-		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem);
+		// Use item
+		EnhancedInputComponent->BindAction(UseItemAction1, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem1);
+		EnhancedInputComponent->BindAction(UseItemAction2, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem2);
+
+		// Cancel LockOn
+		EnhancedInputComponent->BindAction(CancelLockOnAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::OnCancelLockOn);
 	}
 	else
 	{
@@ -125,29 +128,6 @@ void AV12_the_gamePawn::BeginPlay()
 		DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
 		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
 		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
-
-	}
-
-	// 아이템 위젯 생성
-	if (ItemHUDWidgetClass)
-	{
-		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-		{
-			ItemWindowWidget = CreateWidget<UUserWidget>(PlayerController, ItemHUDWidgetClass);
-
-			ItemWindowWidget->AddToViewport();
-		}
-	}
-
-	if (ItemWindowWidget)
-	{
-		FName const FunctionName = FName(TEXT("InitializeItemWindow"));
-
-		if(UFunction* Function = ItemWindowWidget->FindFunction(FunctionName))
-		{
-			ItemWindowWidget->ProcessEvent(Function, nullptr);
-		}
-
 	}
 }
 
@@ -315,13 +295,52 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 	}
 }
 
-// 아이템 사용
-void AV12_the_gamePawn::UseItem(const FInputActionValue& Value)
+#pragma region Items
+
+void AV12_the_gamePawn::UseItem1(const FInputActionValue& Value)
 {
-	
+	UseItemByIndex(0);
 }
 
+void AV12_the_gamePawn::UseItem2(const FInputActionValue& Value)
+{
+	UseItemByIndex(1);
+}
 
+void AV12_the_gamePawn::UseItemByIndex(int32 Index)
+{
+	// 아이템 사용
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
+		return;
+	}
+	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
+	if (!InvComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not Found InventoryComponent in PlayerController"));
+		return;
+	}
+
+	InvComp->UseItem(Index);
+
+	UE_LOG(LogTemp, Warning, TEXT("Itme No.%d Use!"), Index + 1);
+}
+
+void AV12_the_gamePawn::OnCancelLockOn()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (AV12_the_gamePlayerController* V12PC =
+			Cast<AV12_the_gamePlayerController>(PC))
+		{
+			V12PC->CancelLockOn();
+		}
+	}
+}
+
+#pragma endregion
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {
