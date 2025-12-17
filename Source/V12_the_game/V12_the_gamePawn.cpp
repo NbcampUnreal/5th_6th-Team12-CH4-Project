@@ -75,8 +75,6 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	SpeedEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpeedEffect"));
 	SpeedEffect->SetupAttachment(BackCamera);
 	SpeedEffect->SetAutoActivate(false);
-
-	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -177,28 +175,6 @@ void AV12_the_gamePawn::BeginPlay()
 	if (SpeedEffectAsset)
 	{
 		SpeedEffect->SetAsset(SpeedEffectAsset);
-	}
-
-	// 아이템 위젯 생성
-	if (ItemHUDWidgetClass)
-	{
-		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-		{
-			ItemWindowWidget = CreateWidget<UUserWidget>(PlayerController, ItemHUDWidgetClass);
-
-			ItemWindowWidget->AddToViewport();
-		}
-	}
-
-	if (ItemWindowWidget)
-	{
-		FName const FunctionName = FName(TEXT("InitializeItemWindow"));
-
-		if(UFunction* Function = ItemWindowWidget->FindFunction(FunctionName))
-		{
-			ItemWindowWidget->ProcessEvent(Function, nullptr);
-		}
-
 	}
 }
 
