@@ -22,6 +22,9 @@ public class V12_the_game : ModuleRules
 			//PCG
 			"PCG", "PCG_InstanceActorSwapper",
 			//Trace Detection
+			"MathPatterns", "TraceHelperFunctions",
+			//Niagara
+      "Niagara",
 			//"MathPatterns", "TraceHelperFunctions",// unfinished code removed
 		});
 

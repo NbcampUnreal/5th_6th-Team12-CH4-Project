@@ -14,6 +14,11 @@
 #include "TimerManager.h"
 #include "Items/V12InventoryComponent.h" 
 #include "Blueprint/UserWidget.h"
+#include "Sound/SoundBase.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -53,6 +58,22 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
+
+	//audio
+	SideScrapeAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("SideScrapeAudio"));
+	SideScrapeAudio->SetupAttachment(RootComponent);
+	SideScrapeAudio->bAutoActivate = false;
+	SideScrapeAudio->bAllowSpatialization = true;
+	
+	//scrape effect
+	SideScrapeEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SideScrapeEffect"));
+	SideScrapeEffect->SetupAttachment(RootComponent);
+	SideScrapeEffect->SetAutoActivate(false);
+
+	//camera effect
+	SpeedEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpeedEffect"));
+	SpeedEffect->SetupAttachment(BackCamera);
+	SpeedEffect->SetAutoActivate(false);
 
 	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
 }
@@ -112,7 +133,7 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//Drift �⺻ ��
+	//Drift
 
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
@@ -126,6 +147,32 @@ void AV12_the_gamePawn::BeginPlay()
 		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
 		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
 
+	}
+
+	//audio
+	if (IsValid(VehicleMesh))
+	{
+		VehicleMesh->OnComponentHit.AddDynamic(this, &AV12_the_gamePawn::OnVehicleHit);
+	}
+
+	if (IsValid(SideScrapeSound))
+	{
+		SideScrapeAudio->SetSound(SideScrapeSound);
+	}
+
+	//scrape effect
+	if (SideScrapeEffectAsset)
+	{
+		SideScrapeEffect->SetAsset(SideScrapeEffectAsset);
+	}
+
+	//camera
+	BackSpringArm->TargetArmLength = DefaultCameraDistance;
+	BackCamera->SetFieldOfView(DefaultFOV);
+
+	if (SpeedEffectAsset)
+	{
+		SpeedEffect->SetAsset(SpeedEffectAsset);
 	}
 
 	// 아이템 위젯 생성
@@ -173,6 +220,79 @@ void AV12_the_gamePawn::Tick(float Delta)
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
 
+	const float SpeedKmh = GetSpeedKmh();
+
+	float TargetDistance = DefaultCameraDistance;
+	float TargetFOV = DefaultFOV;
+
+	if (SpeedKmh >= MinScrapeSpeedKmh)
+	{
+		float SpeedAlpha = FMath::Clamp(
+			(SpeedKmh - MinScrapeSpeedKmh / 100.f),
+			0.f,
+			1.f
+		);
+
+		TargetDistance = FMath::Lerp(
+			DefaultCameraDistance,
+			MaxCameraDistance,
+			SpeedAlpha
+		);
+
+		TargetFOV = FMath::Lerp(
+			DefaultFOV,
+			MaxFOV,
+			SpeedAlpha
+		);
+
+	}
+	BackSpringArm->TargetArmLength = FMath::FInterpTo(
+		BackSpringArm->TargetArmLength,
+		TargetDistance,
+		Delta,
+		CameraZoomInterpSpeed
+	);
+
+	BackCamera->SetFieldOfView(
+		FMath::FInterpTo(
+			BackCamera->FieldOfView,
+			TargetFOV,
+			Delta,
+			FOVInterpSpeed
+		)
+	);
+
+	if (!bFrontCameraActive)
+	{
+		if (SpeedKmh >= MinScrapeSpeedKmh)
+		{
+			if (!SpeedEffect->IsActive())
+			{
+				SpeedEffect->Activate();
+			}
+
+			SpeedEffect->SetFloatParameter(
+				TEXT("SpeedRatio"),
+				FMath::Clamp(SpeedKmh / 200.f, 0.2f, 1.f)
+			);
+		}
+		else
+		{
+			if (SpeedEffect->IsActive())
+			{
+				SpeedEffect->Deactivate();
+			}
+		}
+	}
+	else
+	{
+		if (SpeedEffect->IsActive())
+		{
+			SpeedEffect->Deactivate();
+		}
+	}
+
+
 	if (ChaosVehicleMovement)
 	{
 		float RPM = ChaosVehicleMovement->GetEngineRotationSpeed();
@@ -209,6 +329,8 @@ void AV12_the_gamePawn::Tick(float Delta)
 
 		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
 	}
+
+
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
@@ -319,6 +441,118 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 void AV12_the_gamePawn::UseItem(const FInputActionValue& Value)
 {
 	
+}
+
+void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!OtherActor || OtherActor == this)
+		return;
+
+	const FVector Forward = GetActorForwardVector();
+	const FVector Right = GetActorRightVector();
+	const FVector Normal = Hit.ImpactNormal;
+
+	const float SideDot = FVector::DotProduct(Right, Normal);
+	const float ImpactPower = NormalImpulse.Size();
+
+	const bool bSideHit = FMath::Abs(SideDot) >= SideDotThreshold;
+
+	const float GroundDot = FVector::DotProduct(Normal, FVector::UpVector);
+	const bool bGroundHit = GroundDot >= GroundNormalThreshold;
+
+	if (bGroundHit)
+	{
+		return;
+	}
+
+	if (ImpactPower >= StrongImpactThreshold)
+	{
+		if (SideScrapeAudio->IsPlaying())
+		{
+			SideScrapeAudio->Stop();
+		}
+
+		if (SideScrapeEffect->IsActive())
+		{
+			SideScrapeEffect->Deactivate();
+		}
+
+		if (IsValid(FrontImpactSound))
+		{
+			UGameplayStatics::PlaySoundAtLocation(
+				GetWorld(),
+				FrontImpactSound,
+				Hit.ImpactPoint
+			);
+		}
+
+		return;
+	}
+
+	const float SpeedKmh = GetSpeedKmh();
+
+	if (SpeedKmh < MinScrapeSpeedKmh)
+	{
+		if (SideScrapeAudio->IsPlaying())
+			SideScrapeAudio->Stop();
+
+		if (SideScrapeEffect->IsActive())
+			SideScrapeEffect->Deactivate();
+
+		return;
+	}
+
+	if (bSideHit)
+	{
+		//audio
+		if (!SideScrapeAudio->IsPlaying())
+		{
+			SideScrapeAudio->Play();
+		}
+
+		//effect
+		SideScrapeEffect->SetWorldLocation(Hit.ImpactPoint);
+
+		FVector Velocity = GetVelocity();
+		Velocity.Z = 0.f;
+
+		if (!Velocity.IsNearlyZero())
+		{
+			FVector SparkDir = FVector::VectorPlaneProject(
+				-Velocity.GetSafeNormal(),
+				Hit.ImpactNormal
+			);
+
+			SideScrapeEffect->SetWorldRotation(SparkDir.Rotation());
+		}
+
+		if (!SideScrapeEffect->IsActive())
+		{
+			SideScrapeEffect->Activate();
+		}
+
+		GetWorld()->GetTimerManager().ClearTimer(ScrapeStopTimer);
+		GetWorld()->GetTimerManager().SetTimer(
+			ScrapeStopTimer,
+			this,
+			&AV12_the_gamePawn::StopSideScrape,
+			ScrapeStopDelay,
+			false
+		);
+	}
+}
+
+void AV12_the_gamePawn::StopSideScrape()
+{
+	if (SideScrapeAudio->IsPlaying())
+	{
+		SideScrapeAudio->Stop();
+	}
+
+	if (SideScrapeEffect->IsActive())
+	{
+		SideScrapeEffect->Deactivate();
+	}
 }
 
 
@@ -434,6 +668,14 @@ void AV12_the_gamePawn::FlippedCheck()
 		// we're upright. reset the flipped check flag
 		bPreviousFlipCheck = false;
 	}
+}
+
+float AV12_the_gamePawn::GetSpeedKmh() const
+{
+	const float SpeedCmPerSec = GetVelocity().Size();
+
+	// cm/s → km/h
+	return SpeedCmPerSec * 0.036f;
 }
 
 #undef LOCTEXT_NAMESPACE
