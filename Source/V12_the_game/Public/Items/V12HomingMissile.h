@@ -73,7 +73,4 @@ protected:
 	float GroundTraceDistance = 2000.f;
 
 	bool bExploded = false;
-
-public:	
-
 };

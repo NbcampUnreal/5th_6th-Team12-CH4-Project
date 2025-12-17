@@ -77,25 +77,6 @@ void AV12_the_gameSportsCar::BeginPlay()
 void AV12_the_gameSportsCar::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-
-	if (!bWaitingForLanding) return;
-
-	if (IsVehicleLanded())
-	{
-		bWaitingForLanding = false;
-
-		// 착지 후 1초 대기
-		GetWorldTimerManager().SetTimer(
-			ControlDisableTimer,
-			this,
-			&AV12_the_gameSportsCar::EnableControl,
-			DisableControlDuration,
-			false
-		);
-
-		UE_LOG(LogTemp, Warning, TEXT("Vehicle Landed - Control will enable in 1s"));
-	}
 }
 
 #pragma region Item System
@@ -108,7 +89,7 @@ void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
 
 	if (!CarMesh)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("LaunchAndSpin: VehicleMesh invalid"));
+		UE_LOG(LogTemp, Warning, TEXT("LaunchAndSpin : VehicleMesh invalid"));
 		return;
 	}
 
@@ -139,12 +120,6 @@ void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
 		NAME_None,
 		true
 	);
-	
-	// ===== 조작 비활성 =====
-	bControlDisabled = true;
-	bWaitingForLanding = true;
-
-	UE_LOG(LogTemp, Warning, TEXT("Control Disabled, waiting for landing"));
 }
 
 // StartBoost
@@ -163,33 +138,6 @@ void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 void AV12_the_gameSportsCar::EndBoost()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Nitro End"));
-}
-
-// 미구현
-void AV12_the_gameSportsCar::EnableControl()
-{
-	bControlDisabled = false;
-
-	UE_LOG(LogTemp, Warning, TEXT("Control Enabled"));
-}
-
-// CarLanded
-bool AV12_the_gameSportsCar::IsVehicleLanded() const
-{
-	FVector Start = GetActorLocation();
-	FVector End = Start - FVector(0, 0, 150.f);
-
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this);
-
-	return GetWorld()->LineTraceSingleByChannel(
-		Hit,
-		Start,
-		End,
-		ECC_Visibility,
-		Params
-	);
 }
 
 #pragma endregion

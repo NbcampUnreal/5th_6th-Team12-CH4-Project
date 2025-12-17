@@ -60,13 +60,6 @@ protected:
 
 	FTimerHandle ControlDisableTimer;
 
-	// 착지 감지용
-	bool bWaitingForLanding = false;
-
-	void EnableControl();
-
-	bool IsVehicleLanded() const;
-
 #pragma endregion
 
 };

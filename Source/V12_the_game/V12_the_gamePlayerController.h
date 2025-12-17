@@ -132,7 +132,7 @@ public:
 
 protected:
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TArray<AActor*> LockOnCandidates;
 
 	UPROPERTY(BlueprintReadOnly)

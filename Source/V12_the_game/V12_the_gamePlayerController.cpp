@@ -123,13 +123,6 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 		return;
 	}
 
-	// 타겟이 이미 파괴된 경우
-	//if (LockedTarget->IsPendingKill() || !IsValid(LockedTarget))
-	//{
-	//	CancelLockOn();
-	//	return;
-	//}
-
 	const float Distance = FVector::Dist(
 		LockedTarget->GetActorLocation(),
 		MyPawn->GetActorLocation()
@@ -137,6 +130,7 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 
 	if (Distance > MaxLockOnDistance)
 	{
+
 		CancelLockOn();
 	}
 }
@@ -208,7 +202,10 @@ void AV12_the_gamePlayerController::CycleTarget()
 	if (LockOnCandidates.Num() == 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No LockOn Candidates"));
+
+
 		ServerSetLockedTarget(nullptr);
+
 		return;
 	}
 
@@ -223,6 +220,18 @@ void AV12_the_gamePlayerController::CycleTarget()
 void AV12_the_gamePlayerController::ServerSetLockedTarget_Implementation(AActor* NewTarget)
 {
 	LockedTarget = NewTarget;
+
+	if (LockOnWidget)
+	{
+		if (LockedTarget)
+		{
+			LockOnWidget->LockOnWidgetShow(true);
+		}
+		else
+		{
+			LockOnWidget->LockOnWidgetShow(false);
+		}
+	}
 }
 
 void AV12_the_gamePlayerController::EnterLockOnMode()
