@@ -18,15 +18,14 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FName ItemID = "BI";
+
 	UPROPERTY(EditDefaultsOnly, Category = "Item")
 	FString ItemName = "BaseItem";
 
 	UPROPERTY(EditDefaultsOnly, Category = "Item")
 	UTexture2D* ItemIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Item")
-	float Duration = 0.f; // 0이면 즉시 사용
-
 
 public:	
 	virtual void Tick(float DeltaTime) override;

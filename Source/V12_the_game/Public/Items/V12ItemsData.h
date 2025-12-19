@@ -16,9 +16,6 @@ struct FV12ItemData : public FTableRowBase
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	FName ItemID;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FString ItemName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
@@ -27,7 +24,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	TSubclassOf<AV12ItemBase> ItemClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	UTexture2D* ItemIcon;
 
 };

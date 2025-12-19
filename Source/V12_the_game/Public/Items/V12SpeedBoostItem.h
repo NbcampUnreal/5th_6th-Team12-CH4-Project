@@ -18,6 +18,7 @@ class V12_THE_GAME_API AV12SpeedBoostItem : public AV12ItemBase
 public:
 	AV12SpeedBoostItem()
 	{
+		ItemID = "SB";
 		ItemName = "SpeedBoost";
 	}
 

@@ -6,6 +6,8 @@
 AV12SpikeTrap::AV12SpikeTrap()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	bReplicates = true;
 }
 
 void AV12SpikeTrap::Tick(float DeltaTime)

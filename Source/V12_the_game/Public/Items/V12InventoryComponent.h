@@ -8,13 +8,15 @@
 #include "Engine/DataTable.h"
 #include "V12InventoryComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
+
 USTRUCT(BlueprintType)
 struct FInventorySlot
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory Slot")
-	FName ItemID;
+	FName RowName;
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -44,8 +46,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory | Data")
 	UDataTable* ItemsDataTable;
 
-public:
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnInventoryUpdated OnInventoryUpdated;
+
+	UPROPERTY()
+	int32 CurrentSlotIndex = INDEX_NONE;
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItem(FName ItemID);
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void ConsumeCurrentItem();
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void UseItem(int32 SlotIndex);
 };

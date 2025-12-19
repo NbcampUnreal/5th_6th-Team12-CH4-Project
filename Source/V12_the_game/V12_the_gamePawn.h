@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
+#include "Net/UnrealNetwork.h"
 #include "V12_the_gamePawn.generated.h"
 
 class UCameraComponent;
@@ -15,7 +16,6 @@ class USoundBase;
 class UAudioComponent;
 class UNiagaraComponent;
 class UNiagaraSystem;
-
 struct FInputActionValue;
 
 /**
@@ -174,11 +174,6 @@ protected:
 
 	FTimerHandle ScrapeStopTimer;
 
-	/** Use Item Action, 아이템 사용 */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* UseItemAction;
-
-
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;
 
@@ -247,14 +242,50 @@ protected:
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
 
-
 	//Drifting
 	void StartDrifting(const FInputActionValue& Value);
 	void StopDrifting(const FInputActionValue& Value);
 
-	/** Handles use item input */
-	void UseItem(const FInputActionValue& Value);
 
+#pragma region Items
+
+	/** Use Item Action, 1,2 slot 아이템 사용 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction1;
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction2;
+	
+	/** CancelLockOnAction */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* CancelLockOnAction;
+
+
+	/** Handles use item input */
+	void UseItem1(const FInputActionValue& Value);
+	void UseItem2(const FInputActionValue& Value);
+	void UseItemByIndex(int32 Index);
+
+	/** CancelLockOn */
+	void OnCancelLockOn();
+
+public:
+	/** Missile Defense */
+	UPROPERTY(ReplicatedUsing = OnRep_MissileDefense, VisibleAnywhere, BlueprintReadOnly, Category = "Defense")
+	bool bMissileDefenseActive = false;
+
+	UFUNCTION()
+	void OnRep_MissileDefense();
+
+
+	void SetMissileDefense(bool bEnable);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeTimeProps) const override;
+
+	FTimerHandle MissileDefenseTimer;
+
+#pragma endregion
+
+protected:
 	UFUNCTION()
 	void OnVehicleHit(
 		UPrimitiveComponent* HitComponent,
@@ -263,10 +294,9 @@ protected:
 		FVector NormalImpulse,
 		const FHitResult& Hit
 	);
-
 	void StopSideScrape();
-public:
 
+public:
 	/** Handle steering input by input actions or mobile interface */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSteering(float SteeringValue);
@@ -307,14 +337,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoResetVehicle();
 
-#pragma region Items
-
-	//UFUNCTION(BlueprintCallable, Category = "Items")
-	//void AddItem(FName ItemID);
-
-
 protected:
-
 	/** Called when the brake lights are turned on or off */
 	UFUNCTION(BlueprintImplementableEvent, Category="Vehicle")
 	void BrakeLights(bool bBraking);
@@ -323,18 +346,7 @@ protected:
 	UFUNCTION()
 	void FlippedCheck();
 
-private:
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
-
-	// 아이템창 UI 띄우기
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	UUserWidget* ItemWindowWidget;
-
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
-	UV12InventoryComponent* InventoryComponent;
-
 	/** Returns the front spring arm subobject */
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }
 	/** Returns the front camera subobject */
