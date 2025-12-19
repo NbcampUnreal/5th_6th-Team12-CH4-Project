@@ -9,6 +9,7 @@
 class UInputMappingContext;
 class AV12_the_gamePawn;
 class UV12_the_gameUI;
+class UV12_tachoMeter;
 
 /**
  *  Vehicle Player Controller class
@@ -49,6 +50,13 @@ protected:
 	/** Pointer to the UI widget */
 	UPROPERTY()
 	TObjectPtr<UV12_the_gameUI> VehicleUI;
+
+	/// 속도 타코미터 UI
+	UPROPERTY(EditAnywhere, Category = "Vehicle|UI")
+	TSubclassOf<UV12_tachoMeter> SpeedUIClass;
+
+	UPROPERTY()
+	TObjectPtr<UV12_tachoMeter> SpeedUI;
 		
 protected:
 
