@@ -75,6 +75,8 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	SpeedEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpeedEffect"));
 	SpeedEffect->SetupAttachment(BackCamera);
 	SpeedEffect->SetAutoActivate(false);
+
+	bReplicates = true;
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -426,6 +428,65 @@ void AV12_the_gamePawn::UseItem2(const FInputActionValue& Value)
 	UseItemByIndex(1);
 }
 
+void AV12_the_gamePawn::UseItemByIndex(int32 Index)
+{
+	// 아이템 사용
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
+		return;
+	}
+	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
+	if (!InvComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not Found InventoryComponent in PlayerController"));
+		return;
+	}
+
+	InvComp->UseItem(Index);
+
+	UE_LOG(LogTemp, Warning, TEXT("Itme No.%d Use!"), Index + 1);
+}
+
+void AV12_the_gamePawn::OnCancelLockOn()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (AV12_the_gamePlayerController* V12PC =
+			Cast<AV12_the_gamePlayerController>(PC))
+		{
+			V12PC->CancelLockOn();
+		}
+	}
+}
+
+void AV12_the_gamePawn::SetMissileDefense(bool bEnable)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	bMissileDefenseActive = bEnable;
+	OnRep_MissileDefense();
+}
+
+void AV12_the_gamePawn::OnRep_MissileDefense()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Missile Defense %s"),
+		bMissileDefenseActive ? TEXT("ENABLED") : TEXT("DISABLED"));
+}
+
+void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AV12_the_gamePawn, bMissileDefenseActive);
+}
+
+#pragma endregion
+
 void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	if (!OtherActor || OtherActor == this)
@@ -537,41 +598,6 @@ void AV12_the_gamePawn::StopSideScrape()
 		SideScrapeEffect->Deactivate();
 	}
 }
-
-void AV12_the_gamePawn::UseItemByIndex(int32 Index)
-{
-	// 아이템 사용
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC)
-	{
-		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
-		return;
-	}
-	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
-	if (!InvComp)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Not Found InventoryComponent in PlayerController"));
-		return;
-	}
-
-	InvComp->UseItem(Index);
-
-	UE_LOG(LogTemp, Warning, TEXT("Itme No.%d Use!"), Index + 1);
-}
-
-void AV12_the_gamePawn::OnCancelLockOn()
-{
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		if (AV12_the_gamePlayerController* V12PC =
-			Cast<AV12_the_gamePlayerController>(PC))
-		{
-			V12PC->CancelLockOn();
-		}
-	}
-}
-
-#pragma endregion
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {

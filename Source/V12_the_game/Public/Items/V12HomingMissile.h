@@ -24,21 +24,22 @@ public:
 
 	void CheckArrival();
 
+	AActor* GetHomingTarget() const { return HomingTarget; }
 
 protected:
 	virtual void BeginPlay() override;
 
 	UFUNCTION()
-	void OnMissileHit
-	(
-		UPrimitiveComponent* HitComp,
+	void OnMissileOverlap(
+		UPrimitiveComponent* OverlappedComp,
 		AActor* OtherActor,
 		UPrimitiveComponent* OtherComp,
-		FVector NormalImpulse,
-		const FHitResult& Hit
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
 	);
 
-	// Explode + NockBack
+	// Explode
 	void Explode();
 
 	UPROPERTY(VisibleAnywhere)
@@ -47,14 +48,14 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	UProjectileMovementComponent* ProjectileMovement;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
-	bool bVelocityChange = true;
+	UPROPERTY()
+	AActor* HomingTarget;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
 	TSubclassOf<AActor> ExplosionEffectClass;
 
-	UPROPERTY()
-	AActor* HomingTarget;
+	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
+	bool bVelocityChange = true;
 
 	// 목표물 도착 반경
 	UPROPERTY(EditDefaultsOnly, Category = "Missile|Flight")

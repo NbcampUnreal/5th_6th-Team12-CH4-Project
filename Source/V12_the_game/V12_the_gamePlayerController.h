@@ -10,6 +10,7 @@
 class UInputMappingContext;
 class UUserWidget;
 class UV12LockOnWidget;
+class UV12LockOnMarker;
 class AV12_the_gamePawn;
 class UV12_the_gameUI;
 
@@ -80,23 +81,31 @@ protected:
 	void OnPawnDestroyed(AActor* DestroyedPawn);
 
 #pragma region Items
-
-private:
-	// 아이템창 UI 띄우기
-	UPROPERTY(EditDefaultsOnly, Category = "UI|Inventory")
-	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
-
-	UPROPERTY()
-	UUserWidget* ItemWindowWidget;
-
-	// Missile LockOn UI
-	UPROPERTY(EditDefaultsOnly, Category = "UI|LockOn")
-	TSubclassOf<UUserWidget> LockOnWidgetClass;
-
-	UPROPERTY()
-	UV12LockOnWidget* LockOnWidget;
-
 public:
+	// Target Change
+	UFUNCTION(BlueprintCallable)
+	void CycleTarget();
+
+	// LockOn Mode On
+	void EnterLockOnMode();
+
+	// Missile Fire
+	UFUNCTION(BlueprintCallable)
+	void ConfirmMissileFire();
+
+	UFUNCTION(BlueprintCallable)
+	void ScanTargets();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetLockedTarget(AActor* NewTarget);
+
+	// LockOn Mode Off
+	UFUNCTION(BlueprintCallable)
+	void CancelLockOn();
+
+	UFUNCTION(BlueprintCallable)
+	void ChangeLockOnTarget();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;
 
@@ -107,33 +116,38 @@ public:
 	UPROPERTY()
 	TSubclassOf<AActor> PendingMissileItemClass;
 
-	// Target Change
-	UFUNCTION(BlueprintCallable)
-	void CycleTarget();
-
-	// LockOn Mode On
-	void EnterLockOnMode();
-
-	// LockOn Mode Off
-	UFUNCTION(BlueprintCallable)
-	void ExitLockOnMode();
-
-	UFUNCTION(BlueprintCallable)
-	void ConfirmMissileFire();
-
-	UFUNCTION(BlueprintCallable)
-	void ScanTargets();
-
-	UFUNCTION(Server, Reliable)
-	void ServerSetLockedTarget(AActor* NewTarget);
-
-	UFUNCTION(BlueprintCallable)
-	void CancelLockOn();
+	// 락온모드 연속 진입 방지용 함수
+	bool IsLockOnMode() const { return bIsLockOnMode; }
 
 protected:
+	// 아이템창 UI 띄우기
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Inventory")
+	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
+
+	// 아이템 띄우기
+	UPROPERTY()
+	UUserWidget* ItemWindowWidget;
+
+	// Missile LockOn UI
+	UPROPERTY(EditDefaultsOnly, Category = "UI|LockOn")
+	TSubclassOf<UUserWidget> LockOnWidgetClass;
+
+	UPROPERTY()
+	UV12LockOnWidget* LockOnWidget;
+
+	// LockOnMarker(Indicator)
+		// Missile LockOn UI
+	UPROPERTY(EditDefaultsOnly, Category = "UI|LockOn")
+	TSubclassOf<UUserWidget> LockOnMarkerClass;
+
+	UPROPERTY()
+	UV12LockOnMarker* LockOnMarker;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AActor*> LockOnCandidates;
+
+	UPROPERTY(BlueprintReadOnly)
+	UPrimitiveComponent* RootPrimitive;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsLockOnMode = false;
@@ -142,7 +156,10 @@ protected:
 	float LockOnDotThreshold = 0.8f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "LockOn")
-	float MaxLockOnDistance = 5000.f;
+	float MaxLockOnDistance = 7000.f;
+
+	// 현재 타겟 인덱스
+	int32 CurrentTargetIndex = -1;
 
 #pragma endregion
 

@@ -17,14 +17,15 @@ AV12HomingMissile::AV12HomingMissile()
 	// Collision
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Collision->InitSphereRadius(80.f);
-	Collision->SetNotifyRigidBodyCollision(true);
-	Collision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Collision->SetCollisionObjectType(ECC_GameTraceChannel1); // Missile Collision Channel
 	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
-	Collision->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Block);
+	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
+	Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	Collision->SetCollisionResponseToChannel(ECC_Vehicle, ECR_Overlap);
+	Collision->SetGenerateOverlapEvents(true);
+
 	RootComponent = Collision;
 
 	// ProjectileMovement
@@ -33,10 +34,11 @@ AV12HomingMissile::AV12HomingMissile()
 	ProjectileMovement->MaxSpeed = 4000.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bIsHomingProjectile = true;
-	ProjectileMovement->HomingAccelerationMagnitude = 15000.f;
+	ProjectileMovement->HomingAccelerationMagnitude = 10000.f;
+	ProjectileMovement->SetUpdatedComponent(Collision);
 
-	// Hit Event
-	Collision->OnComponentHit.AddDynamic(this, &AV12HomingMissile::OnMissileHit);
+	// Overlap Event
+	Collision->OnComponentBeginOverlap.AddDynamic(this, &AV12HomingMissile::OnMissileOverlap);
 }
 
 void AV12HomingMissile::BeginPlay()
@@ -61,28 +63,16 @@ void AV12HomingMissile::SetHomingTarget(AActor* NewTarget)
 		return;
 	}
 
-	// 1순위: 충돌 있는 PrimitiveComponent 찾기
-	TArray<UPrimitiveComponent*> Components;
-	NewTarget->GetComponents<UPrimitiveComponent>(Components);
-
-	for (UPrimitiveComponent* Comp : Components)
-	{
-		if (Comp->IsCollisionEnabled())
-		{
-			ProjectileMovement->HomingTargetComponent = Comp;
-			return;
-		}
-	}
-
 	ProjectileMovement->HomingTargetComponent = NewTarget->GetRootComponent();
 }
 
-void AV12HomingMissile::OnMissileHit(
-	UPrimitiveComponent* HitComp, 
-	AActor* OtherActor, 
-	UPrimitiveComponent* OtherComp, 
-	FVector NormalImpulse, 
-	const FHitResult& Hit)
+void AV12HomingMissile::OnMissileOverlap(
+	UPrimitiveComponent* OverlappedComp,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
 {
 	if (bExploded)
 	{
@@ -95,7 +85,7 @@ void AV12HomingMissile::OnMissileHit(
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Target Hit!"));
+	UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
 
 	Explode();
 }
@@ -141,7 +131,7 @@ void AV12HomingMissile::Explode()
 		);
 	}
 
-	// 넉백 처리(차량 폰 클래스에서 함수를 만들고 호출하는 것으로 변경 예정)
+	// 차량 폰 클래스에서 AddImpulse로 공중에 뜨면서 뒤집어짐.
 	if (HomingTarget)
 	{
 		APawn* Pawn = Cast<APawn>(HomingTarget);
@@ -155,13 +145,26 @@ void AV12HomingMissile::Explode()
 			Vehicle->LaunchAndSpin(GetActorLocation());
 		}
 	}
-
 	SetLifeSpan(0.1f);
 }
 
 void AV12HomingMissile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// 타겟 유효성 검사
+	if (!IsValid(HomingTarget))
+	{
+		Destroy();
+		return;
+	}
+
+	AV12_the_gamePawn* TargetPawn = Cast<AV12_the_gamePawn>(HomingTarget);
+	if (TargetPawn && TargetPawn->bMissileDefenseActive)
+	{
+		Destroy();
+		return;
+	}
 
 	// DebugSphere
 	DrawDebugSphere(
@@ -202,7 +205,6 @@ void AV12HomingMissile::Tick(float DeltaTime)
 			DeltaTime,
 			AltitudeInterpSpeed
 		);
-
 		SetActorLocation(
 			FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
 			false
@@ -222,6 +224,10 @@ void AV12HomingMissile::CheckArrival()
 
 	if (Distance <= ArrivalRadius)
 	{
+		ProjectileMovement->bIsHomingProjectile = false;
+		ProjectileMovement->Velocity =
+			(GetActorForwardVector() * ProjectileMovement->MaxSpeed);
+
 		UE_LOG(LogTemp, Warning, TEXT("Arrival Explode"));
 
 		Explode();

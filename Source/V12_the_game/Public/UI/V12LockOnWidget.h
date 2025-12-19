@@ -7,8 +7,7 @@
 #include "Blueprint/UserWidget.h"
 #include "V12LockOnWidget.generated.h"
 
-class UVerticalBox;
-
+class UV12LockOnMarker;
 
 UCLASS()
 class V12_THE_GAME_API UV12LockOnWidget : public UUserWidget
@@ -16,14 +15,12 @@ class V12_THE_GAME_API UV12LockOnWidget : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-	UFUNCTION(BlueprintCallable)
-	void LockOnWidgetShow(bool bShow); 
-
-	UFUNCTION(BlueprintCallable)
-	void UpdateLockOnScreenPos(const FVector2D& ScreenPos);
-
-protected:
 	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* VerticalBox_LockOn;
+	UUserWidget* LockOnButtons;
 
+	UFUNCTION(BlueprintCallable)
+	void ShowLockOn();
+
+	UFUNCTION(BlueprintCallable)
+	void HideLockOn();
 };

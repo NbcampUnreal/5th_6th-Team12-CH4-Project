@@ -1,22 +1,17 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// V12LockOnWidget.cpp
 
 
 #include "UI/V12LockOnWidget.h"
+#include "UI/V12LockOnMarker.h"
 #include "Components/VerticalBox.h"
 
-void UV12LockOnWidget::LockOnWidgetShow(bool bShow)
+void UV12LockOnWidget::ShowLockOn()
 {
-	if (!VerticalBox_LockOn)
-	{
-		return;
-	}
-
-	VerticalBox_LockOn->SetVisibility(
-		bShow ? ESlateVisibility::Visible : ESlateVisibility::Hidden
-	);
+	SetVisibility(ESlateVisibility::Visible);
 }
 
-void UV12LockOnWidget::UpdateLockOnScreenPos(const FVector2D& ScreenPos)
+void UV12LockOnWidget::HideLockOn()
 {
-	SetPositionInViewport(ScreenPos, true);
+	SetVisibility(ESlateVisibility::Hidden);
 }

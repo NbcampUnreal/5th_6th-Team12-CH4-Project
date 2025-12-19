@@ -7,6 +7,7 @@
 #include "Items/V12SpeedBoostItem.h"
 #include "Items/V12ItemsData.h"
 #include "Items/V12MissileItem.h"
+#include "Items/V12DefenseItem.h"
 #include "V12_the_gamePlayerController.h"
 
 class UV12ItemBase;
@@ -224,17 +225,56 @@ void UV12InventoryComponent::UseItem(int32 SlotIndex)
 
 		if (AV12_the_gamePlayerController* V12PC = Cast<AV12_the_gamePlayerController>(PC))
 		{
+			if (V12PC->IsLockOnMode())
+			{
+				UE_LOG(LogTemp, Log, TEXT("Already in LockOnMode - Skip"));
+				return;
+			}
+
 			if (GEngine)
 			{
 				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("유도 미사일 락온 모드 진입"));
 			}
+
 
 			// 미사일아이템 클래스 전달
 			V12PC->PendingMissileItemClass = ItemData->ItemClass;
 
 			// 발사하지 않고 락온 모드만 진입
 			V12PC->EnterLockOnMode();
+		}
+	}
+	else if (ItemIDToUse == "MD")
+	{
+		if (!ItemsDataTable)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ItemsDataTable is NULL"));
+			return;
+		}
 
+		const FV12ItemData* ItemData =
+			ItemsDataTable->FindRow<FV12ItemData>(FName("MD"), TEXT("UseItem MD"));
+
+		if (!ItemData || !ItemData->ItemClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Spike Item Row or ItemClass is NULL"));
+			return;
+		}
+
+		APlayerController* PC = Cast<APlayerController>(GetOwner());
+		if (PC)
+		{
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.F, FColor::Yellow, TEXT("미사일 방어 아이템 사용!"));
+			}
+
+			AV12DefenseItem* DefenseItem =
+				NewObject<AV12DefenseItem>(this, ItemData->ItemClass);
+
+			DefenseItem->UseItem(TargetActor);
+
+			ConsumeCurrentItem();
 		}
 	}
 

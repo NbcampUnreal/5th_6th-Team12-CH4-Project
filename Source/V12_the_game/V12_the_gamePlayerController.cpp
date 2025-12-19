@@ -13,9 +13,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerStart.h"
 #include "Widgets/Input/SVirtualJoystick.h"
-#include "Components/VerticalBox.h"
 #include "UI/V12LockOnWidget.h"
+#include "UI/V12LockOnMarker.h"
 #include "Items/V12MissileItem.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+
 
 AV12_the_gamePlayerController::AV12_the_gamePlayerController()
 {
@@ -63,8 +65,11 @@ void AV12_the_gamePlayerController::BeginPlay()
 		if (LockOnWidget)
 		{
 			LockOnWidget->AddToViewport(50); // HUD보다 위
-			LockOnWidget->LockOnWidgetShow(false);
+			LockOnWidget->HideLockOn();
 		}
+		
+
+
 	}
 }
 
@@ -99,13 +104,14 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	// LockOn Wiget Position Update
 	if (bIsLockOnMode && LockedTarget && LockOnWidget)
 	{
+		// LockOn Marker Posistion
 		FVector2D ScreenPos;
 		ProjectWorldLocationToScreen(
 			LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
-			ScreenPos
+			ScreenPos, true
 		);
 
-		LockOnWidget->UpdateLockOnScreenPos(ScreenPos);
+		LockOnMarker->UpdateScreenPosition(ScreenPos);
 	}
 
 	// LockOn Distance Cancel
@@ -130,7 +136,6 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 
 	if (Distance > MaxLockOnDistance)
 	{
-
 		CancelLockOn();
 	}
 }
@@ -203,18 +208,17 @@ void AV12_the_gamePlayerController::CycleTarget()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No LockOn Candidates"));
 
-
 		ServerSetLockedTarget(nullptr);
 
 		return;
 	}
 
-	static int32 Index = 0;
-	Index = (Index + 1) % LockOnCandidates.Num();
+	CurrentTargetIndex =
+		(CurrentTargetIndex + 1) % LockOnCandidates.Num();
 
-	UE_LOG(LogTemp, Warning, TEXT("Locked Target: %s"), *LockOnCandidates[Index]->GetName());
+	UE_LOG(LogTemp, Warning, TEXT("Locked Target: %s"), *LockOnCandidates[CurrentTargetIndex]->GetName());
 
-	ServerSetLockedTarget(LockOnCandidates[Index]);
+	ServerSetLockedTarget(LockOnCandidates[CurrentTargetIndex]);
 }
 
 void AV12_the_gamePlayerController::ServerSetLockedTarget_Implementation(AActor* NewTarget)
@@ -225,11 +229,11 @@ void AV12_the_gamePlayerController::ServerSetLockedTarget_Implementation(AActor*
 	{
 		if (LockedTarget)
 		{
-			LockOnWidget->LockOnWidgetShow(true);
+			LockOnWidget->ShowLockOn();
 		}
 		else
 		{
-			LockOnWidget->LockOnWidgetShow(false);
+			LockOnWidget->HideLockOn();
 		}
 	}
 }
@@ -243,13 +247,18 @@ void AV12_the_gamePlayerController::EnterLockOnMode()
 
 	if (LockOnWidget)
 	{
-		LockOnWidget->LockOnWidgetShow(true);
+		LockOnWidget->ShowLockOn();
 	}
-}
 
-void AV12_the_gamePlayerController::ExitLockOnMode()
-{
-	CancelLockOn();
+	// LockOn Marker Create
+	LockOnMarker = CreateWidget<UV12LockOnMarker>(this, LockOnMarkerClass);
+	if (LockOnMarker)
+	{
+		LockOnMarker->AddToViewport(40);
+		LockOnMarker->SetMarkerVisible(true);
+	}
+
+	//RootPrimitive = Cast<UPrimitiveComponent>(LockedTarget->GetRootComponent());
 }
 
 void AV12_the_gamePlayerController::ConfirmMissileFire()
@@ -283,8 +292,7 @@ void AV12_the_gamePlayerController::ConfirmMissileFire()
 
 	MissileItem->UseItem(OwnerPawn);
 
-	PendingMissileItemClass = nullptr;
-	ExitLockOnMode();
+	CancelLockOn();
 
 	if (InventoryComponent)
 	{
@@ -292,6 +300,7 @@ void AV12_the_gamePlayerController::ConfirmMissileFire()
 	}
 }
 
+// 락온 모드 해제
 void AV12_the_gamePlayerController::CancelLockOn()
 {
 	if (!bIsLockOnMode)
@@ -305,12 +314,30 @@ void AV12_the_gamePlayerController::CancelLockOn()
 
 	if (LockOnWidget)
 	{
-		LockOnWidget->LockOnWidgetShow(false);
+		LockOnWidget->HideLockOn();
+		LockOnMarker->SetMarkerVisible(false);
 	}
+
+	LockOnMarker->RemoveFromParent();
+	LockOnMarker = nullptr;
 
 	UE_LOG(LogTemp, Log, TEXT("LockOn Canceled"));
 }
 
+void AV12_the_gamePlayerController::ChangeLockOnTarget()
+{
+	if (!bIsLockOnMode)
+	{
+		return;
+	}
 
+	CycleTarget();
+
+	// 타겟이 바뀌었으면 UI 갱신
+	if (LockOnWidget && LockedTarget)
+	{
+		LockOnWidget->ShowLockOn();
+	}
+}
 
 #pragma endregion

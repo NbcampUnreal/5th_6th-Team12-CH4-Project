@@ -19,7 +19,6 @@ class AV12_the_gameSportsCar : public AV12_the_gamePawn
 	GENERATED_BODY()
 	
 public:
-
 	AV12_the_gameSportsCar();
 
 	void BeginPlay() override;
