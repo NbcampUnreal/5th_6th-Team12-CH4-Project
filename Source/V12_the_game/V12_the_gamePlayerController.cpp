@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerStart.h"
 #include "Widgets/Input/SVirtualJoystick.h"
+#include "UI/V12_tachoMeter.h"
 
 void AV12_the_gamePlayerController::BeginPlay()
 {
@@ -32,6 +33,22 @@ void AV12_the_gamePlayerController::BeginPlay()
 		} else {
 
 			UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn vehicle UI widget."));
+
+		}
+	}
+
+	if (IsLocalPlayerController())
+	{
+		SpeedUI = CreateWidget<UV12_tachoMeter>(this, SpeedUIClass);
+
+		if (SpeedUI)
+		{
+			SpeedUI->AddToViewport();
+
+		}
+		else 
+		{
+			UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn speed UI widget."));
 
 		}
 	}
@@ -63,6 +80,13 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	{
 		VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
 		VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
+	}
+
+	/// RPM Update
+	if (IsValid(VehiclePawn) && IsValid(SpeedUI) && IsValid(VehiclePawn))
+	{
+		float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
+		SpeedUI->UpdateRPM(nowRPM);
 	}
 }
 
