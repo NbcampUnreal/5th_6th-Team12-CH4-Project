@@ -6,7 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "V12LobbyPlayerController.generated.h"
 
-class ULobbyWidget;
+class UV12LobbyWidget;
 /**
  * 
  */
@@ -19,15 +19,15 @@ public:
     virtual void BeginPlay() override;
 
 protected:
-    //UPROPERTY(EditAnywhere, Category = "UI")
-    //TSubclassOf<ULobbyWidget> LobbyWidgetClass;
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UV12LobbyWidget> LobbyWidgetClass;
 
-    //UPROPERTY()
-    //ULobbyWidget* LobbyWidgetInstance;
+    UPROPERTY()
+    UV12LobbyWidget* LobbyWidgetInstance;
 
     // 클라 → 서버로 닉네임 보내기
     UFUNCTION(Server, Reliable)
     void Server_SendNicknameToServer(const FString& InNickname);
     void Server_SendNicknameToServer_Implementation(const FString& InNickname);
-	
+
 };

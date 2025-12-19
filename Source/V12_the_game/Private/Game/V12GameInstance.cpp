@@ -4,11 +4,6 @@
 #include "Game/V12GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
-void UV12GameInstance::SetPlayerNickname(const FString& NewNickname)
-{
-	PlayerNickname = NewNickname;
-}
-
 void UV12GameInstance::JoinLobby()
 {
 	FName LobbyMapName = TEXT("LobbyMap");

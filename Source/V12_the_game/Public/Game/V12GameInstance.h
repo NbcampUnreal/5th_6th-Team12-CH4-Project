@@ -20,7 +20,10 @@ public:
     FString PlayerNickname;
 
     UFUNCTION(BlueprintCallable, Category = "Player")
-    void SetPlayerNickname(const FString& NewNickname);
+    void SetPlayerNickname(const FString& NewNickname)
+    {
+        PlayerNickname = NewNickname;
+    }
 
     UFUNCTION(BlueprintPure, Category = "Player")
     FString GetPlayerNickname() const { return PlayerNickname; }

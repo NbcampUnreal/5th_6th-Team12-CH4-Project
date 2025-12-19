@@ -17,7 +17,7 @@ class V12_THE_GAME_API AV12PlayerState : public APlayerState
 public:
     AV12PlayerState();
 
-    UPROPERTY(ReplicatedUsing = OnRep_PlayerName, BlueprintReadOnly, Category = "Lobby")
+    UPROPERTY(ReplicatedUsing = OnRep_LobbyPlayerName, BlueprintReadOnly, Category = "Lobby")
     FString PlayerName;
 
     void SetPlayerNameOnServer(const FString& NewName);

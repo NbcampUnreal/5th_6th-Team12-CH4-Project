@@ -3,11 +3,11 @@
 #include "Player/V12PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
-
 AV12PlayerState::AV12PlayerState()
 {
     bReplicates = true;
 }
+
 
 void AV12PlayerState::SetPlayerNameOnServer(const FString& NewName)
 {

@@ -1,5 +1,5 @@
 #include "Player/V12LobbyPlayerController.h"
-//#include "LobbyWidget.h"
+#include "UI/V12LobbyWidget.h"
 #include "Game/V12GameInstance.h"
 #include "Blueprint/UserWidget.h"
 #include <Player/V12PlayerState.h>
@@ -9,14 +9,14 @@ void AV12LobbyPlayerController::BeginPlay()
     Super::BeginPlay();
 
     // 로비 UI 띄우기
-    //if (IsLocalController() && LobbyWidgetClass)
-    //{
-    //    LobbyWidgetInstance = CreateWidget<ULobbyWidget>(this, LobbyWidgetClass);
-    //    if (LobbyWidgetInstance)
-    //    {
-    //        LobbyWidgetInstance->AddToViewport();
-    //    }
-    //}
+    if (IsLocalController() && LobbyWidgetClass)
+    {
+        LobbyWidgetInstance = CreateWidget<UV12LobbyWidget>(this, LobbyWidgetClass);
+        if (LobbyWidgetInstance)
+        {
+            LobbyWidgetInstance->AddToViewport();
+        }
+    }
 
     // 닉네임을 서버로 보내기
     if (IsLocalController())
@@ -33,6 +33,7 @@ void AV12LobbyPlayerController::BeginPlay()
         }
     }
 }
+
 
 void AV12LobbyPlayerController::Server_SendNicknameToServer_Implementation(const FString& InNickname)
 {
