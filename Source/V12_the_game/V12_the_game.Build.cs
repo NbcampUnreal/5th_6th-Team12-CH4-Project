@@ -21,10 +21,9 @@ public class V12_the_game : ModuleRules
 			"UMG", "Slate", "SlateCore",
 			//PCG
 			"PCG", "PCG_InstanceActorSwapper",
-			//Trace Detection
-			"MathPatterns", "TraceHelperFunctions",
 			//Niagara
-      "Niagara",
+			"Niagara",
+			//Trace Detection
 			//"MathPatterns", "TraceHelperFunctions",// unfinished code removed
 		});
 
