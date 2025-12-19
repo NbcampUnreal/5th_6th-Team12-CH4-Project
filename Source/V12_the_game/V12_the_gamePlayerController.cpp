@@ -159,7 +159,6 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			CancelLockOn();
 		}
 	}
-
 }
 
 void AV12_the_gamePlayerController::OnPossess(APawn* InPawn)
