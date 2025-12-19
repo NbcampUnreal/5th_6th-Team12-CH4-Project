@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "V12SpikeTrap.generated.h"
 
+
 UCLASS()
 class V12_THE_GAME_API AV12SpikeTrap : public AActor
 {

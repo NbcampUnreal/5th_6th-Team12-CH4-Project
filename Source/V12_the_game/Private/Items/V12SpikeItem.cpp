@@ -3,6 +3,7 @@
 
 #include "Items/V12SpikeItem.h"
 
+
 void AV12SpikeItem::UseItem(AActor* TargetActor)
 {
 	UE_LOG(LogTemp, Error, TEXT("===== UseItem Called ====="));

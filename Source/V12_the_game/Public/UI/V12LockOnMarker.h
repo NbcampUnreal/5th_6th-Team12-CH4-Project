@@ -1,4 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// V12LockOnMarker.h
 
 #pragma once
 
@@ -8,9 +9,7 @@
 
 class UVerticalBox;
 
-/**
- * 
- */
+
 UCLASS()
 class V12_THE_GAME_API UV12LockOnMarker : public UUserWidget
 {

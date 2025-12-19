@@ -3,6 +3,7 @@
 
 #include "Items/V12SpikeTrap.h"
 
+
 AV12SpikeTrap::AV12SpikeTrap()
 {
 	PrimaryActorTick.bCanEverTick = false;

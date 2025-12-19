@@ -12,6 +12,7 @@
 
 class UV12ItemBase;
 
+
 UV12InventoryComponent::UV12InventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;

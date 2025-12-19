@@ -9,6 +9,7 @@
 #include "TimerManager.h"
 #include "Items/V12InventoryComponent.h"
 
+
 AV12ItemBox_DT::AV12ItemBox_DT()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -110,6 +111,5 @@ FName AV12ItemBox_DT::GetRandomItem()
 			}
 		}
 	}
-
 	return NAME_None;
 }

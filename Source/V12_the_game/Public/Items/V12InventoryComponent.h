@@ -10,6 +10,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
 
+
 USTRUCT(BlueprintType)
 struct FInventorySlot
 {

@@ -1,4 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// ItemsDate.h
 
 #pragma once
 
@@ -7,6 +8,7 @@
 #include "V12ItemsData.generated.h"
 
 class AV12ItemBase;
+
 
 USTRUCT(BlueprintType)
 struct FV12ItemData : public FTableRowBase

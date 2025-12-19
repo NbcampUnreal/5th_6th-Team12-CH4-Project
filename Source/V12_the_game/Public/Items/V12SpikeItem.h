@@ -8,9 +8,7 @@
 #include "Items/V12SpikeTrap.h"
 #include "V12SpikeItem.generated.h"
 
-/**
- * 
- */
+
 UCLASS()
 class V12_THE_GAME_API AV12SpikeItem : public AV12ItemBase
 {

@@ -10,6 +10,7 @@
 class USphereComponent;
 class UProjectileMovementComponent;
 
+
 UCLASS()
 class V12_THE_GAME_API AV12HomingMissile : public AActor
 {
