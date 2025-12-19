@@ -110,6 +110,14 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 {
 	Super::Tick(Delta);
 
+	/// RPM Update
+	if (IsValid(VehiclePawn) && IsValid(SpeedUI) && IsValid(VehiclePawn))
+	{
+		float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
+		SpeedUI->UpdateRPM(nowRPM);
+		// UE_LOG(LogTemp, Warning, TEXT("Current RPM: %f"), nowRPM);
+	}
+
 	if (IsValid(VehiclePawn) && IsValid(VehicleUI))
 	{
 		VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
@@ -132,34 +140,26 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	// LockOn Distance Cancel
 
 	// 락온 중이 아니면 아무 것도 안 함
-	if (!LockedTarget)
+	if (LockedTarget)
 	{
-		return;
+		APawn* MyPawn = GetPawn();
+		if (!MyPawn)
+		{
+			CancelLockOn();
+			return;
+		}
+
+		const float Distance = FVector::Dist(
+			LockedTarget->GetActorLocation(),
+			MyPawn->GetActorLocation()
+		);
+
+		if (Distance > MaxLockOnDistance)
+		{
+			CancelLockOn();
+		}
 	}
 
-	APawn* MyPawn = GetPawn();
-	if (!MyPawn)
-	{
-		CancelLockOn();
-		return;
-	}
-
-	const float Distance = FVector::Dist(
-		LockedTarget->GetActorLocation(),
-		MyPawn->GetActorLocation()
-	);
-
-	if (Distance > MaxLockOnDistance)
-	{
-		CancelLockOn();
-	}
-
-	/// RPM Update
-	if (IsValid(VehiclePawn) && IsValid(SpeedUI) && IsValid(VehiclePawn))
-	{
-		float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
-		SpeedUI->UpdateRPM(nowRPM);
-	}
 }
 
 void AV12_the_gamePlayerController::OnPossess(APawn* InPawn)
