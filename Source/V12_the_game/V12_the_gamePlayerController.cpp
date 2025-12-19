@@ -17,6 +17,7 @@
 #include "UI/V12LockOnMarker.h"
 #include "Items/V12MissileItem.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "UI/V12_tachoMeter.h"
 
 
 AV12_the_gamePlayerController::AV12_the_gamePlayerController()
@@ -67,9 +68,23 @@ void AV12_the_gamePlayerController::BeginPlay()
 			LockOnWidget->AddToViewport(50); // HUD보다 위
 			LockOnWidget->HideLockOn();
 		}
-		
+	
+	}
 
+	if (IsLocalPlayerController())
+	{
+		SpeedUI = CreateWidget<UV12_tachoMeter>(this, SpeedUIClass);
 
+		if (SpeedUI)
+		{
+			SpeedUI->AddToViewport();
+
+		}
+		else 
+		{
+			UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn speed UI widget."));
+
+		}
 	}
 }
 
@@ -137,6 +152,13 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	if (Distance > MaxLockOnDistance)
 	{
 		CancelLockOn();
+	}
+
+	/// RPM Update
+	if (IsValid(VehiclePawn) && IsValid(SpeedUI) && IsValid(VehiclePawn))
+	{
+		float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
+		SpeedUI->UpdateRPM(nowRPM);
 	}
 }
 
