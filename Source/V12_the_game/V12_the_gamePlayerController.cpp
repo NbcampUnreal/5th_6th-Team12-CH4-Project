@@ -49,27 +49,34 @@ void AV12_the_gamePlayerController::BeginPlay()
 	}
 
 	// Inventory Widget Create
-	if (ItemHUDWidgetClass)
+	if (IsLocalPlayerController())
 	{
-		if (APlayerController* LocalController = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+		if (ItemHUDWidgetClass)
 		{
-			ItemWindowWidget = CreateWidget<UUserWidget>(LocalController, ItemHUDWidgetClass);
+			if (APlayerController* LocalController = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+			{
+				ItemWindowWidget = CreateWidget<UUserWidget>(LocalController, ItemHUDWidgetClass);
 
-			ItemWindowWidget->AddToViewport();
+				ItemWindowWidget->AddToViewport();
+			}
 		}
 	}
-
-	// LockOn Widget Create
-	if (LockOnWidgetClass)
-	{
-		LockOnWidget = CreateWidget<UV12LockOnWidget>(this, LockOnWidgetClass);
-		if (LockOnWidget)
-		{
-			LockOnWidget->AddToViewport(50); // HUD보다 위
-			LockOnWidget->HideLockOn();
-		}
 	
+	// LockOn Widget Create
+	if (IsLocalPlayerController())
+	{
+		if (LockOnWidgetClass)
+		{
+			LockOnWidget = CreateWidget<UV12LockOnWidget>(this, LockOnWidgetClass);
+			if (LockOnWidget)
+			{
+				LockOnWidget->AddToViewport(50); // HUD보다 위
+				LockOnWidget->HideLockOn();
+			}
+
+		}
 	}
+
 
 	if (IsLocalPlayerController())
 	{
@@ -125,17 +132,17 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	}
 
 	// LockOn Wiget Position Update
-	if (bIsLockOnMode && LockedTarget && LockOnWidget)
-	{
-		// LockOn Marker Posistion
-		FVector2D ScreenPos;
-		ProjectWorldLocationToScreen(
-			LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
-			ScreenPos, true
-		);
+	//if (bIsLockOnMode && LockedTarget && LockOnWidget)
+	//{
+	//	// LockOn Marker Posistion
+	//	FVector2D ScreenPos;
+	//	ProjectWorldLocationToScreen(
+	//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
+	//		ScreenPos, true
+	//	);
 
-		LockOnMarker->UpdateScreenPosition(ScreenPos);
-	}
+	//	LockOnMarker->UpdateScreenPosition(ScreenPos);
+	//}
 
 	// LockOn Distance Cancel
 

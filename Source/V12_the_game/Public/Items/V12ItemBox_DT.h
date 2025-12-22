@@ -41,6 +41,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Item Box")
 	UDataTable* ItemDataTable;
 
+	// 상태 동기화를 위한 멀티캐스트 함수
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SetActive(bool bActive);
+
 	UFUNCTION()
 	void OnOverlap(
 		UPrimitiveComponent* OverlappedComp,

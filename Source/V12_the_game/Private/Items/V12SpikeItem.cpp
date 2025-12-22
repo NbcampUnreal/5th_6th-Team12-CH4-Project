@@ -19,7 +19,18 @@ void AV12SpikeItem::UseItem(AActor* TargetActor)
 
 	if (!TargetActor) return;
 
-	if (!SpikeTrapClass)
+	if (!HasAuthority())
+	{
+		ServerSpawnSpikeTrap(TargetActor);
+		return;
+	}
+
+	ServerSpawnSpikeTrap(TargetActor);
+}
+
+void AV12SpikeItem::ServerSpawnSpikeTrap_Implementation(AActor* TargetActor)
+{
+	if (!SpikeTrapClass || !TargetActor)
 	{
 		UE_LOG(LogTemp, Error, TEXT("SpawnClass is NULL"));
 		return;

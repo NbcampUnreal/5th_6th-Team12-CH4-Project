@@ -2,6 +2,7 @@
 // V12SpikeTrap.cpp
 
 #include "Items/V12SpikeTrap.h"
+#include "Net/UnrealNetwork.h"
 
 
 AV12SpikeTrap::AV12SpikeTrap()
@@ -9,6 +10,7 @@ AV12SpikeTrap::AV12SpikeTrap()
 	PrimaryActorTick.bCanEverTick = false;
 
 	bReplicates = true;
+	SetReplicateMovement(true);
 }
 
 void AV12SpikeTrap::Tick(float DeltaTime)
@@ -20,6 +22,12 @@ void AV12SpikeTrap::Tick(float DeltaTime)
 void AV12SpikeTrap::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 서버에서만 실행
+	if (!HasAuthority())
+	{
+		return;
+	}
 
 	// 땅속에서 시작
 	InitialLocation = GetActorLocation();
@@ -36,11 +44,17 @@ void AV12SpikeTrap::BeginPlay()
 
 void AV12SpikeTrap::RaiseUpdate()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	ElapsedTime += 0.01f;
 
 	float Alpha = FMath::Clamp(ElapsedTime / RaiseDuration, 0.f, 1.f);
 	FVector NewLocation = FMath::Lerp(InitialLocation, TargetLocation, Alpha);
 	SetActorLocation(NewLocation);
+
 	if (Alpha >= 1.f)
 	{
 		// 상승 완료

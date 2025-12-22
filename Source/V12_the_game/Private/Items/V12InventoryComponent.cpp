@@ -9,6 +9,7 @@
 #include "Items/V12MissileItem.h"
 #include "Items/V12DefenseItem.h"
 #include "V12_the_gamePlayerController.h"
+#include "Net/UnrealNetwork.h"
 
 class UV12ItemBase;
 
@@ -35,73 +36,28 @@ void UV12InventoryComponent::BeginPlay()
 	}
 }
 
-void UV12InventoryComponent::AddItem(FName ItemID)
+void UV12InventoryComponent::Server_UseItem_Implementation(int32 SlotIndex)
 {
-	if (ItemID == NAME_None) 
+	if (!Items.IsValidIndex(SlotIndex))
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("사용할 아이템이 없습니다!"));
+
 		return;
-	}
-
-	for(int32 i = 0; i < Items.Num(); i++)
-	{
-		if (Items[i].RowName == NAME_None)
-		{
-			Items[i].RowName = ItemID;
-
-
-			OnInventoryUpdated.Broadcast();
-
-			if (GEngine)
-			{
-				FString const Msg = FString::Printf(TEXT("아이템 저장! 슬롯 %d : %s"), i + 1, *ItemID.ToString());
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
-			}
-
-			return;
-		}
-	}
-
-	if(GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("슬롯이 가득 찼습니다!"));
-	}
-}
-
-void UV12InventoryComponent::ConsumeCurrentItem()
-{
-	if (!Items.IsValidIndex(CurrentSlotIndex))
-	{
-		return;
-	}
-
-	Items[CurrentSlotIndex].RowName = NAME_None;
-	CurrentSlotIndex = INDEX_NONE;
-	OnInventoryUpdated.Broadcast();
-}
-
-
-void UV12InventoryComponent::UseItem(int32 SlotIndex)
-{
-	if (!Items.IsValidIndex(SlotIndex)) 
-	{	
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("사용할 아이템이 없습니다!")); 
-
-		return; 
 	}
 
 	CurrentSlotIndex = SlotIndex;
 
 	FName ItemIDToUse = Items[SlotIndex].RowName;
-	if(ItemIDToUse == NAME_None)
+	if (ItemIDToUse == NAME_None)
 	{
 		return;
 	}
 
 	// 서버(권한) 체크 : 서버에서만 아이템 사용 처리
-	//if (!GetOwner() || !GetOwner()->HasAuthority())
-	//{
-	//	return;
-	//}
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
 
 	// OwnerActor 얻기 (인벤토리가 어디에 붙어있는지에 따라 안전하게 처리)
 	AActor* OwnerActor = GetOwner();
@@ -134,7 +90,7 @@ void UV12InventoryComponent::UseItem(int32 SlotIndex)
 	}
 
 
-	if(ItemIDToUse == "SB")
+	if (ItemIDToUse == "SB")
 	{
 		if (!ItemsDataTable)
 		{
@@ -184,11 +140,11 @@ void UV12InventoryComponent::UseItem(int32 SlotIndex)
 			UE_LOG(LogTemp, Error, TEXT("Spike Item Row or ItemClass is NULL"));
 			return;
 		}
-	
+
 		APlayerController* PC = Cast<APlayerController>(GetOwner());
 		if (PC)
 		{
-			if(GEngine)
+			if (GEngine)
 			{
 				GEngine->AddOnScreenDebugMessage(-1, 5.F, FColor::Yellow, TEXT("스파이크 트랩 아이템 사용!"));
 			}
@@ -197,7 +153,7 @@ void UV12InventoryComponent::UseItem(int32 SlotIndex)
 				NewObject<AV12SpikeItem>(this, ItemData->ItemClass);
 
 			SpikeItem->UseItem(TargetActor);
-	
+
 			ConsumeCurrentItem();
 		}
 	}
@@ -280,4 +236,58 @@ void UV12InventoryComponent::UseItem(int32 SlotIndex)
 	}
 
 	OnInventoryUpdated.Broadcast();
+}
+
+void UV12InventoryComponent::AddItem(FName ItemID)
+{
+	if (ItemID == NAME_None) 
+	{
+		return;
+	}
+
+	for(int32 i = 0; i < Items.Num(); i++)
+	{
+		if (Items[i].RowName == NAME_None)
+		{
+			Items[i].RowName = ItemID;
+
+			OnInventoryUpdated.Broadcast();
+
+			if (GEngine)
+			{
+				FString const Msg = FString::Printf(TEXT("아이템 저장! 슬롯 %d : %s"), i + 1, *ItemID.ToString());
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
+			}
+			return;
+		}
+	}
+
+	if(GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("슬롯이 가득 찼습니다!"));
+	}
+}
+
+void UV12InventoryComponent::ConsumeCurrentItem()
+{
+	if (!Items.IsValidIndex(CurrentSlotIndex))
+	{
+		return;
+	}
+
+	Items[CurrentSlotIndex].RowName = NAME_None;
+	CurrentSlotIndex = INDEX_NONE;
+	OnInventoryUpdated.Broadcast();
+}
+
+
+void UV12InventoryComponent::UseItem(int32 SlotIndex)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		Server_UseItem(SlotIndex);
+		return;
+	}
+
+	Server_UseItem(SlotIndex);	
 }

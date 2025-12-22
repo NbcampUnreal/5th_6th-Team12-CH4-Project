@@ -26,4 +26,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Spike")
 	TSubclassOf<AV12SpikeTrap> SpikeTrapClass;
+
+protected:
+	UFUNCTION(Server, Reliable)
+	void ServerSpawnSpikeTrap(AActor* TargetActor);
 };

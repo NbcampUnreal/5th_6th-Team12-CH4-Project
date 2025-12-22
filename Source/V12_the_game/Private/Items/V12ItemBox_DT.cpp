@@ -28,6 +28,10 @@ AV12ItemBox_DT::AV12ItemBox_DT()
 	// 회전 컴포넌트
 	RotatingComp = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("RotatingComp"));
 	RotatingComp->RotationRate = FRotator(0.f, 120.f, 0.f); // 초당 120도 회전
+
+	// 멀티플레이어 설정
+	bReplicates = true;
+	SetReplicateMovement(true);
 }
 
 void AV12ItemBox_DT::Tick(float DeltaTime)
@@ -40,10 +44,22 @@ void AV12ItemBox_DT::BeginPlay()
 	Super::BeginPlay();
 }
 
+void AV12ItemBox_DT::Multicast_SetActive_Implementation(bool bActive)
+{
+	BoxMesh->SetVisibility(bActive);
+	CollisionBox->SetCollisionEnabled(bActive ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+}
+
 void AV12ItemBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
-{
+{ 
+	// 서버만 처리
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (APlayerController* PC = Cast<APlayerController>(OtherActor->GetInstigatorController()))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Car Overlapped!"));
@@ -62,7 +78,8 @@ void AV12ItemBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 
 		UE_LOG(LogTemp, Warning, TEXT("Player acquired item: %s"), *RandomItemRow.ToString());
 
-		BoxMesh->SetVisibility(false);
+		//BoxMesh->SetVisibility(false);
+		Multicast_SetActive(false);
 		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 		GetWorldTimerManager().SetTimer(RespawnTimer, this, &AV12ItemBox_DT::Respawn, RespawnTime, false);
@@ -71,7 +88,8 @@ void AV12ItemBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 
 void AV12ItemBox_DT::Respawn()
 {
-	BoxMesh->SetVisibility(true);
+	//BoxMesh->SetVisibility(true);
+	Multicast_SetActive(true);
 	CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	UE_LOG(LogTemp, Warning, TEXT("ItemBox Respawned"));
