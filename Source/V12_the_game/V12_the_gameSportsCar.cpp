@@ -81,6 +81,48 @@ void AV12_the_gameSportsCar::Tick(float DeltaTime)
 
 #pragma region Item System
 
+// Car Launch And Spin
+void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
+{
+	UPrimitiveComponent* CarMesh =
+		Cast<UPrimitiveComponent>(GetRootComponent());
+
+	if (!CarMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LaunchAndSpin : VehicleMesh invalid"));
+		return;
+	}
+
+	CarMesh->WakeAllRigidBodies();
+
+	// ===== 날아가는 방향 =====
+	FVector Dir = GetActorLocation() - HitLocation;
+	Dir.Z = 0.f;
+	Dir.Normalize();
+
+	// ===== 선형 임펄스 (위 + 뒤) =====
+	FVector LaunchImpulse =
+		Dir * HorizontalImpulse +
+		FVector(0.f, 0.f, VerticalImpulse);
+
+	CarMesh->AddImpulse(
+		LaunchImpulse,
+		NAME_None,
+		true   // 질량 무시
+	);
+
+	// ===== 회전 임펄스 (한 바퀴) =====
+	FVector AngularImpulse =
+		GetActorRightVector() * SpinImpulse;
+
+	CarMesh->AddAngularImpulseInRadians(
+		AngularImpulse,
+		NAME_None,
+		true
+	);
+}
+
+// StartBoost
 void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 {
 	UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(GetRootComponent());
@@ -92,6 +134,7 @@ void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 	RootComp->AddImpulse(Forward * BoostForce, NAME_None, true);
 }
 
+// EndBoost
 void AV12_the_gameSportsCar::EndBoost()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Nitro End"));
