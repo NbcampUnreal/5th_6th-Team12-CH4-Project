@@ -50,7 +50,7 @@ protected:
 	);
 
 	FTimerHandle RespawnTimer;
-	//FV12ItemData* GetRandomItem();
+	FName GetRandomItem();
 
 public:
 	virtual void Tick(float DeltaTime) override;

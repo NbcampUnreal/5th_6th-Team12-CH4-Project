@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
+#include "Net/UnrealNetwork.h"
 #include "V12_the_gamePawn.generated.h"
 
 class UCameraComponent;
@@ -11,6 +12,10 @@ class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
 class UV12InventoryComponent;
+class USoundBase;
+class UAudioComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
 struct FInputActionValue;
 
 /**
@@ -46,6 +51,54 @@ public:
 	/** Cast pointer to the Chaos Vehicle movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
+
+	//audio
+	UPROPERTY(VisibleAnywhere, Category = "Audio")
+	UAudioComponent* SideScrapeAudio;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	USoundBase* SideScrapeSound;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	USoundBase* FrontImpactSound;
+
+	//effect
+	UPROPERTY(VisibleAnywhere, Category = "Effect")
+	UNiagaraComponent* SideScrapeEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Effect")
+	UNiagaraSystem* SideScrapeEffectAsset;
+
+	UPROPERTY(EditAnywhere, Category = "Effect")
+	float MinScrapeSpeedKmh = 30.f;
+
+	float GroundNormalThreshold = 0.75f;
+
+	//camera effect
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float DefaultCameraDistance = 650.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float MaxCameraDistance = 900.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float CameraZoomInterpSpeed = 2.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float DefaultFOV = 90.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float MaxFOV = 105.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	float FOVInterpSpeed = 6.f;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	UNiagaraComponent* SpeedEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Effect|Camera")
+	UNiagaraSystem* SpeedEffectAsset;
+
 protected:
 
 	/** Steering Action */
@@ -111,10 +164,15 @@ protected:
 
 	bool bIsDrifting = false;
 
-	/** Use Item Action, 아이템 사용 */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* UseItemAction;
+	//Collision
+	float SideDotThreshold = 0.6f;
 
+	UPROPERTY(EditAnywhere, Category = "Collision")
+	float StrongImpactThreshold = 80000.f;
+
+	float ScrapeStopDelay = 0.15f;
+
+	FTimerHandle ScrapeStopTimer;
 
 	/** Keeps track of which camera is active */
 	bool bFrontCameraActive = false;
@@ -184,17 +242,61 @@ protected:
 	/** Handles reset vehicle input */
 	void ResetVehicle(const FInputActionValue& Value);
 
-
 	//Drifting
 	void StartDrifting(const FInputActionValue& Value);
 	void StopDrifting(const FInputActionValue& Value);
 
-	/** Handles use item input */
-	void UseItem(const FInputActionValue& Value);
 
+#pragma region Items
+
+	/** Use Item Action, 1,2 slot 아이템 사용 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction1;
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UseItemAction2;
+	
+	/** CancelLockOnAction */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* CancelLockOnAction;
+
+
+	/** Handles use item input */
+	void UseItem1(const FInputActionValue& Value);
+	void UseItem2(const FInputActionValue& Value);
+	void UseItemByIndex(int32 Index);
+
+	/** CancelLockOn */
+	void OnCancelLockOn();
 
 public:
+	/** Missile Defense */
+	UPROPERTY(ReplicatedUsing = OnRep_MissileDefense, VisibleAnywhere, BlueprintReadOnly, Category = "Defense")
+	bool bMissileDefenseActive = false;
 
+	UFUNCTION()
+	void OnRep_MissileDefense();
+
+
+	void SetMissileDefense(bool bEnable);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeTimeProps) const override;
+
+	FTimerHandle MissileDefenseTimer;
+
+#pragma endregion
+
+protected:
+	UFUNCTION()
+	void OnVehicleHit(
+		UPrimitiveComponent* HitComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		FVector NormalImpulse,
+		const FHitResult& Hit
+	);
+	void StopSideScrape();
+
+public:
 	/** Handle steering input by input actions or mobile interface */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSteering(float SteeringValue);
@@ -235,14 +337,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoResetVehicle();
 
-#pragma region Items
-
-	//UFUNCTION(BlueprintCallable, Category = "Items")
-	//void AddItem(FName ItemID);
-
-
 protected:
-
 	/** Called when the brake lights are turned on or off */
 	UFUNCTION(BlueprintImplementableEvent, Category="Vehicle")
 	void BrakeLights(bool bBraking);
@@ -251,18 +346,7 @@ protected:
 	UFUNCTION()
 	void FlippedCheck();
 
-private:
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TSubclassOf<UUserWidget> ItemHUDWidgetClass;
-
-	// 아이템창 UI 띄우기
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	UUserWidget* ItemWindowWidget;
-
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
-	UV12InventoryComponent* InventoryComponent;
-
 	/** Returns the front spring arm subobject */
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }
 	/** Returns the front camera subobject */
@@ -273,4 +357,7 @@ public:
 	FORCEINLINE UCameraComponent* GetBackCamera() const { return BackCamera; }
 	/** Returns the cast Chaos Vehicle Movement subobject */
 	FORCEINLINE const TObjectPtr<UChaosWheeledVehicleMovementComponent>& GetChaosVehicleMovement() const { return ChaosVehicleMovement; }
+
+	UFUNCTION(BlueprintCallable, Category = "Vehicle")
+	float GetSpeedKmh() const;
 };

@@ -7,6 +7,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "V12_the_gamePawn.h"
 #include "TimerManager.h"
+#include "Items/V12InventoryComponent.h"
 
 AV12ItemBox_DT::AV12ItemBox_DT()
 {
@@ -33,37 +34,38 @@ void AV12ItemBox_DT::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-
 void AV12ItemBox_DT::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-
 void AV12ItemBox_DT::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 BodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	//if (AV12_the_gamePawn* Car = Cast<AV12_the_gamePawn>(OtherActor))
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Car Overlapped!"));
+	if (APlayerController* PC = Cast<APlayerController>(OtherActor->GetInstigatorController()))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Car Overlapped!"));
 
-	//	//FV12ItemData* RandomItemRow = GetRandomItem();
-	//	if (RandomItemRow == nullptr)
-	//	{
-	//		UE_LOG(LogTemp, Warning, TEXT("No item returned from table!"));
-	//		return;
-	//	}
+		FName RandomItemRow = GetRandomItem();
+		if (RandomItemRow == NAME_None)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No item returned from table!"));
+			return;
+		}
 
-	//	Car->AddItem(RandomItemRow->ItemID);
+		if (UV12InventoryComponent* InvComp = PC->FindComponentByClass<UV12InventoryComponent>())
+		{
+			InvComp->AddItem(RandomItemRow);
+		}
 
-	//	UE_LOG(LogTemp, Warning, TEXT("Player acquired item: %s"), *RandomItemRow->ItemID.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Player acquired item: %s"), *RandomItemRow.ToString());
 
-	//	BoxMesh->SetVisibility(false);
-	//	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		BoxMesh->SetVisibility(false);
+		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	//	GetWorldTimerManager().SetTimer(RespawnTimer, this, &AV12ItemBox_DT::Respawn, RespawnTime, false);
-	//}
+		GetWorldTimerManager().SetTimer(RespawnTimer, this, &AV12ItemBox_DT::Respawn, RespawnTime, false);
+	}
 }
 
 void AV12ItemBox_DT::Respawn()
@@ -74,41 +76,40 @@ void AV12ItemBox_DT::Respawn()
 	UE_LOG(LogTemp, Warning, TEXT("ItemBox Respawned"));
 }
 
-//FV12ItemData* AV12ItemBox_DT::GetRandomItem()
-//{
-	//if (!ItemDataTable) return nullptr;
+FName AV12ItemBox_DT::GetRandomItem()
+{
+	if (!ItemDataTable) return NAME_None;
 
-	//TArray<FName> RowNames = ItemDataTable->GetRowNames();
-	//if (RowNames.Num() == 0) return nullptr;
+	TArray<FName> RowNames = ItemDataTable->GetRowNames();
+	if (RowNames.Num() == 0) return NAME_None;
 
-	//int32 TotalWeight = 0;
+	int32 TotalWeight = 0;
 
-	//// 전체 확률 합산
-	//for (FName RowName : RowNames)
-	//{
-	//	FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, "");
-	//	if(Row)
-	//	{
-	//		TotalWeight += Row->Weight;
-	//	}
-	//}
+	// 전체 확률 합산
+	for (FName RowName : RowNames)
+	{
+		if (FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, ""))
+		{
+			TotalWeight += Row->Weight;
+		}
+	}
 
-	//if (TotalWeight <= 0) return nullptr;
+	if (TotalWeight <= 0) return NAME_None;
 
-	//int32 RandomValue = UKismetMathLibrary::RandomIntegerInRange(1, TotalWeight);
+	int32 RandomValue = UKismetMathLibrary::RandomIntegerInRange(1, TotalWeight);
 
-	//int32 AccumulatedWeight = 0;
-	//for (FName RowName : RowNames)
-	//{
-	//	if (FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, ""))
-	//	{
-	//		AccumulatedWeight += Row->Weight;
-	//		if (RandomValue <= AccumulatedWeight)
-	//		{
-	//			return Row;
-	//		}
-	//	}
-	//}
+	int32 AccumulatedWeight = 0;
+	for (FName RowName : RowNames)
+	{
+		if (FV12ItemData* Row = ItemDataTable->FindRow<FV12ItemData>(RowName, ""))
+		{
+			AccumulatedWeight += Row->Weight;
+			if (RandomValue <= AccumulatedWeight)
+			{
+				return RowName;
+			}
+		}
+	}
 
-	//return nullptr;
-//}
+	return NAME_None;
+}

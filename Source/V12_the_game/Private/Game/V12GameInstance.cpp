@@ -6,6 +6,6 @@
 
 void UV12GameInstance::JoinLobby()
 {
-	FName LobbyMapName = TEXT("LobbyMap");
+	FName LobbyMapName = TEXT("TestLevel");
 	UGameplayStatics::OpenLevel(this, LobbyMapName);
 }

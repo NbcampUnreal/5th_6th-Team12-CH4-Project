@@ -25,9 +25,5 @@ protected:
     UPROPERTY()
     UV12LobbyWidget* LobbyWidgetInstance;
 
-    // 클라 → 서버로 닉네임 보내기
-    UFUNCTION(Server, Reliable)
-    void Server_SendNicknameToServer(const FString& InNickname);
-    void Server_SendNicknameToServer_Implementation(const FString& InNickname);
 
 };

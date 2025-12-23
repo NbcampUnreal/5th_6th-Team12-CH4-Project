@@ -16,7 +16,6 @@ void AV12PlayerState::SetPlayerNameOnServer(const FString& NewName)
 
 void AV12PlayerState::OnRep_LobbyPlayerName()
 {
-    // UI 갱신 트리거가 필요하면 여기에서 BP 이벤트 호출도 가능
 }
 
 void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const

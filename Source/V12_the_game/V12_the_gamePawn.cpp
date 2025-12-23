@@ -14,6 +14,12 @@
 #include "TimerManager.h"
 #include "Items/V12InventoryComponent.h" 
 #include "Blueprint/UserWidget.h"
+#include "V12_the_gamePlayerController.h"
+#include "Sound/SoundBase.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -54,7 +60,23 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	// get the Chaos Wheeled movement component
 	ChaosVehicleMovement = CastChecked<UChaosWheeledVehicleMovementComponent>(GetVehicleMovement());
 
-	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
+	//audio
+	SideScrapeAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("SideScrapeAudio"));
+	SideScrapeAudio->SetupAttachment(RootComponent);
+	SideScrapeAudio->bAutoActivate = false;
+	SideScrapeAudio->bAllowSpatialization = true;
+	
+	//scrape effect
+	SideScrapeEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SideScrapeEffect"));
+	SideScrapeEffect->SetupAttachment(RootComponent);
+	SideScrapeEffect->SetAutoActivate(false);
+
+	//camera effect
+	SpeedEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SpeedEffect"));
+	SpeedEffect->SetupAttachment(BackCamera);
+	SpeedEffect->SetAutoActivate(false);
+
+	bReplicates = true;
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -93,8 +115,12 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Started, this, &AV12_the_gamePawn::StartDrifting);
 		EnhancedInputComponent->BindAction(DriftingAction, ETriggerEvent::Completed, this, &AV12_the_gamePawn::StopDrifting);
 
-		// use item
-		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem);
+		// Use item
+		EnhancedInputComponent->BindAction(UseItemAction1, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem1);
+		EnhancedInputComponent->BindAction(UseItemAction2, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::UseItem2);
+
+		// Cancel LockOn
+		EnhancedInputComponent->BindAction(CancelLockOnAction, ETriggerEvent::Triggered, this, &AV12_the_gamePawn::OnCancelLockOn);
 	}
 	else
 	{
@@ -112,7 +138,7 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//Drift �⺻ ��
+	//Drift
 
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
@@ -125,29 +151,32 @@ void AV12_the_gamePawn::BeginPlay()
 		DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
 		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
 		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
-
 	}
 
-	// 아이템 위젯 생성
-	if (ItemHUDWidgetClass)
+	//audio
+	if (IsValid(VehicleMesh))
 	{
-		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-		{
-			ItemWindowWidget = CreateWidget<UUserWidget>(PlayerController, ItemHUDWidgetClass);
-
-			ItemWindowWidget->AddToViewport();
-		}
+		VehicleMesh->OnComponentHit.AddDynamic(this, &AV12_the_gamePawn::OnVehicleHit);
 	}
 
-	if (ItemWindowWidget)
+	if (IsValid(SideScrapeSound))
 	{
-		FName const FunctionName = FName(TEXT("InitializeItemWindow"));
+		SideScrapeAudio->SetSound(SideScrapeSound);
+	}
 
-		if(UFunction* Function = ItemWindowWidget->FindFunction(FunctionName))
-		{
-			ItemWindowWidget->ProcessEvent(Function, nullptr);
-		}
+	//scrape effect
+	if (SideScrapeEffectAsset)
+	{
+		SideScrapeEffect->SetAsset(SideScrapeEffectAsset);
+	}
 
+	//camera
+	BackSpringArm->TargetArmLength = DefaultCameraDistance;
+	BackCamera->SetFieldOfView(DefaultFOV);
+
+	if (SpeedEffectAsset)
+	{
+		SpeedEffect->SetAsset(SpeedEffectAsset);
 	}
 }
 
@@ -172,6 +201,79 @@ void AV12_the_gamePawn::Tick(float Delta)
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
+
+	const float SpeedKmh = GetSpeedKmh();
+
+	float TargetDistance = DefaultCameraDistance;
+	float TargetFOV = DefaultFOV;
+
+	if (SpeedKmh >= MinScrapeSpeedKmh)
+	{
+		float SpeedAlpha = FMath::Clamp(
+			(SpeedKmh - MinScrapeSpeedKmh / 100.f),
+			0.f,
+			1.f
+		);
+
+		TargetDistance = FMath::Lerp(
+			DefaultCameraDistance,
+			MaxCameraDistance,
+			SpeedAlpha
+		);
+
+		TargetFOV = FMath::Lerp(
+			DefaultFOV,
+			MaxFOV,
+			SpeedAlpha
+		);
+
+	}
+	BackSpringArm->TargetArmLength = FMath::FInterpTo(
+		BackSpringArm->TargetArmLength,
+		TargetDistance,
+		Delta,
+		CameraZoomInterpSpeed
+	);
+
+	BackCamera->SetFieldOfView(
+		FMath::FInterpTo(
+			BackCamera->FieldOfView,
+			TargetFOV,
+			Delta,
+			FOVInterpSpeed
+		)
+	);
+
+	if (!bFrontCameraActive)
+	{
+		if (SpeedKmh >= MinScrapeSpeedKmh)
+		{
+			if (!SpeedEffect->IsActive())
+			{
+				SpeedEffect->Activate();
+			}
+
+			SpeedEffect->SetFloatParameter(
+				TEXT("SpeedRatio"),
+				FMath::Clamp(SpeedKmh / 200.f, 0.2f, 1.f)
+			);
+		}
+		else
+		{
+			if (SpeedEffect->IsActive())
+			{
+				SpeedEffect->Deactivate();
+			}
+		}
+	}
+	else
+	{
+		if (SpeedEffect->IsActive())
+		{
+			SpeedEffect->Deactivate();
+		}
+	}
+
 
 	if (ChaosVehicleMovement)
 	{
@@ -271,7 +373,6 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 	DoResetVehicle();
 }
 
-
 void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 {
 	DoHandbrakeStart();
@@ -315,13 +416,188 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 	}
 }
 
-// 아이템 사용
-void AV12_the_gamePawn::UseItem(const FInputActionValue& Value)
+#pragma region Items
+
+void AV12_the_gamePawn::UseItem1(const FInputActionValue& Value)
 {
-	
+	UseItemByIndex(0);
 }
 
+void AV12_the_gamePawn::UseItem2(const FInputActionValue& Value)
+{
+	UseItemByIndex(1);
+}
 
+void AV12_the_gamePawn::UseItemByIndex(int32 Index)
+{
+	// 아이템 사용
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
+		return;
+	}
+	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
+	if (!InvComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not Found InventoryComponent in PlayerController"));
+		return;
+	}
+
+	InvComp->UseItem(Index);
+
+	UE_LOG(LogTemp, Warning, TEXT("Itme No.%d Use!"), Index + 1);
+}
+
+void AV12_the_gamePawn::OnCancelLockOn()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (AV12_the_gamePlayerController* V12PC =
+			Cast<AV12_the_gamePlayerController>(PC))
+		{
+			V12PC->CancelLockOn();
+		}
+	}
+}
+
+void AV12_the_gamePawn::SetMissileDefense(bool bEnable)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	bMissileDefenseActive = bEnable;
+	OnRep_MissileDefense();
+}
+
+void AV12_the_gamePawn::OnRep_MissileDefense()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Missile Defense %s"),
+		bMissileDefenseActive ? TEXT("ENABLED") : TEXT("DISABLED"));
+}
+
+void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AV12_the_gamePawn, bMissileDefenseActive);
+}
+
+#pragma endregion
+
+void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (!OtherActor || OtherActor == this)
+		return;
+
+	const FVector Forward = GetActorForwardVector();
+	const FVector Right = GetActorRightVector();
+	const FVector Normal = Hit.ImpactNormal;
+
+	const float SideDot = FVector::DotProduct(Right, Normal);
+	const float ImpactPower = NormalImpulse.Size();
+
+	const bool bSideHit = FMath::Abs(SideDot) >= SideDotThreshold;
+
+	const float GroundDot = FVector::DotProduct(Normal, FVector::UpVector);
+	const bool bGroundHit = GroundDot >= GroundNormalThreshold;
+
+	if (bGroundHit)
+	{
+		return;
+	}
+
+	if (ImpactPower >= StrongImpactThreshold)
+	{
+		if (SideScrapeAudio->IsPlaying())
+		{
+			SideScrapeAudio->Stop();
+		}
+
+		if (SideScrapeEffect->IsActive())
+		{
+			SideScrapeEffect->Deactivate();
+		}
+
+		if (IsValid(FrontImpactSound))
+		{
+			UGameplayStatics::PlaySoundAtLocation(
+				GetWorld(),
+				FrontImpactSound,
+				Hit.ImpactPoint
+			);
+		}
+
+		return;
+	}
+
+	const float SpeedKmh = GetSpeedKmh();
+
+	if (SpeedKmh < MinScrapeSpeedKmh)
+	{
+		if (SideScrapeAudio->IsPlaying())
+			SideScrapeAudio->Stop();
+
+		if (SideScrapeEffect->IsActive())
+			SideScrapeEffect->Deactivate();
+
+		return;
+	}
+
+	if (bSideHit)
+	{
+		//audio
+		if (!SideScrapeAudio->IsPlaying())
+		{
+			SideScrapeAudio->Play();
+		}
+
+		//effect
+		SideScrapeEffect->SetWorldLocation(Hit.ImpactPoint);
+
+		FVector Velocity = GetVelocity();
+		Velocity.Z = 0.f;
+
+		if (!Velocity.IsNearlyZero())
+		{
+			FVector SparkDir = FVector::VectorPlaneProject(
+				-Velocity.GetSafeNormal(),
+				Hit.ImpactNormal
+			);
+
+			SideScrapeEffect->SetWorldRotation(SparkDir.Rotation());
+		}
+
+		if (!SideScrapeEffect->IsActive())
+		{
+			SideScrapeEffect->Activate();
+		}
+
+		GetWorld()->GetTimerManager().ClearTimer(ScrapeStopTimer);
+		GetWorld()->GetTimerManager().SetTimer(
+			ScrapeStopTimer,
+			this,
+			&AV12_the_gamePawn::StopSideScrape,
+			ScrapeStopDelay,
+			false
+		);
+	}
+}
+
+void AV12_the_gamePawn::StopSideScrape()
+{
+	if (SideScrapeAudio->IsPlaying())
+	{
+		SideScrapeAudio->Stop();
+	}
+
+	if (SideScrapeEffect->IsActive())
+	{
+		SideScrapeEffect->Deactivate();
+	}
+}
 
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {
@@ -434,6 +710,14 @@ void AV12_the_gamePawn::FlippedCheck()
 		// we're upright. reset the flipped check flag
 		bPreviousFlipCheck = false;
 	}
+}
+
+float AV12_the_gamePawn::GetSpeedKmh() const
+{
+	const float SpeedCmPerSec = GetVelocity().Size();
+
+	// cm/s → km/h
+	return SpeedCmPerSec * 0.036f;
 }
 
 #undef LOCTEXT_NAMESPACE
