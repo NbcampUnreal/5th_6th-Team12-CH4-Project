@@ -626,13 +626,19 @@ void AV12_the_gamePawn::DoBrake(float BrakeValue)
 void AV12_the_gamePawn::DoBrakeStart()
 {
 	// call the Blueprint hook for the brake lights
-	BrakeLights(true);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(true);
+	}
 }
 
 void AV12_the_gamePawn::DoBrakeStop()
 {
 	// call the Blueprint hook for the brake lights
-	BrakeLights(false);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(false);
+	}
 
 	// reset brake input to zero
 	ChaosVehicleMovement->SetBrakeInput(0.0f);
@@ -644,7 +650,10 @@ void AV12_the_gamePawn::DoHandbrakeStart()
 	ChaosVehicleMovement->SetHandbrakeInput(true);
 
 	// call the Blueprint hook for the break lights
-	BrakeLights(true);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(true);
+	}
 }
 
 void AV12_the_gamePawn::DoHandbrakeStop()
@@ -653,7 +662,10 @@ void AV12_the_gamePawn::DoHandbrakeStop()
 	ChaosVehicleMovement->SetHandbrakeInput(false);
 
 	// call the Blueprint hook for the break lights
-	BrakeLights(false);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(false);
+	}
 }
 
 void AV12_the_gamePawn::DoLookAround(float YawDelta)
@@ -686,6 +698,16 @@ void AV12_the_gamePawn::DoResetVehicle()
 
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+}
+
+void AV12_the_gamePawn::OnRep_Brake()
+{
+	BrakeLights(bBrakeOn);
+}
+
+void AV12_the_gamePawn::Server_SetBrake_Implementation(bool bNewBrake)
+{
+	bBrakeOn = bNewBrake;
 }
 
 void AV12_the_gamePawn::FlippedCheck()

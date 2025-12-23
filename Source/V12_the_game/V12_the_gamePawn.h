@@ -342,6 +342,15 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category="Vehicle")
 	void BrakeLights(bool bBraking);
 
+	UPROPERTY(ReplicatedUsing = OnRep_Brake)
+	bool bBrakeOn;
+
+	UFUNCTION()
+	void OnRep_Brake();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetBrake(bool bNewBrake);
+
 	/** Checks if the car is flipped upside down and automatically resets it */
 	UFUNCTION()
 	void FlippedCheck();
