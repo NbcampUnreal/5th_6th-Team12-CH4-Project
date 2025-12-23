@@ -70,7 +70,7 @@ void AV12_the_gamePlayerController::BeginPlay()
 			LockOnWidget = CreateWidget<UV12LockOnWidget>(this, LockOnWidgetClass);
 			if (LockOnWidget)
 			{
-				LockOnWidget->AddToViewport(50); // HUD보다 위
+				LockOnWidget->AddToViewport(50); // HUD보다 ??
 				LockOnWidget->HideLockOn();
 			}
 
@@ -146,7 +146,7 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 
 	// LockOn Distance Cancel
 
-	// ?�온 중이 ?�니�??�무 것도 ????
+	// ?�온 중이 ?�니�??�무 것도 ????
 	if (LockedTarget)
 	{
 		APawn* MyPawn = GetPawn();
@@ -361,7 +361,7 @@ void AV12_the_gamePlayerController::ChangeLockOnTarget()
 
 	CycleTarget();
 
-	// ?�겟이 바뀌었?�면 UI 갱신
+	// ?�겟??바뀌었?�면 UI 갱신
 	if (LockOnWidget && LockedTarget)
 	{
 		LockOnWidget->ShowLockOn();
