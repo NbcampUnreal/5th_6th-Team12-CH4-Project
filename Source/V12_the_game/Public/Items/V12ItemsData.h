@@ -17,6 +17,14 @@ struct FV12ItemData : public FTableRowBase
 
 public:
 
+	FV12ItemData()
+	{
+		ItemName = "";
+		Weight = 0;
+		ItemClass = nullptr;
+		ItemIcon = nullptr;
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FString ItemName;
 
