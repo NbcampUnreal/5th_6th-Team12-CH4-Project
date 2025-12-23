@@ -17,6 +17,7 @@ class UV12ItemBase;
 UV12InventoryComponent::UV12InventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
 }
 
 void UV12InventoryComponent::BeginPlay()
@@ -33,6 +34,89 @@ void UV12InventoryComponent::BeginPlay()
 		{
 			InventoryWidget = CreateWidget<UUserWidget>(PlayerController, InventoryWidgetClass);
 		}
+	}
+}
+
+void UV12InventoryComponent::AddItem(FName ItemID)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		Server_AddItem(ItemID);
+		return;
+	}
+
+	Server_AddItem(ItemID);
+}
+
+void UV12InventoryComponent::UseItem(int32 SlotIndex)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		Server_UseItem(SlotIndex);
+		return;
+	}
+
+	Server_UseItem(SlotIndex);
+}
+
+void UV12InventoryComponent::ConsumeCurrentItem()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		Server_ConsumeCurrentItem();
+		return;
+	}
+
+	Server_ConsumeCurrentItem();
+}
+
+
+void UV12InventoryComponent::OnRep_Items()
+{
+	OnInventoryUpdated.Broadcast();
+}
+
+
+void UV12InventoryComponent::OnRep_CurrentSlotIndex()
+{
+	// 범위 보호 (서버에서 이미 했어도 안전장치)
+	if (CurrentSlotIndex != INDEX_NONE &&
+		!Items.IsValidIndex(CurrentSlotIndex))
+	{
+		CurrentSlotIndex = INDEX_NONE;
+	}
+
+	// UI 갱신 알림
+	OnInventoryUpdated.Broadcast();
+}
+
+void UV12InventoryComponent::Server_AddItem_Implementation(FName ItemID)
+{
+	if (ItemID == NAME_None)
+	{
+		return;
+	}
+
+	for (int32 i = 0; i < Items.Num(); i++)
+	{
+		if (Items[i].RowName == NAME_None)
+		{
+			Items[i].RowName = ItemID;
+
+			OnInventoryUpdated.Broadcast();
+
+			if (GEngine)
+			{
+				FString const Msg = FString::Printf(TEXT("아이템 저장! 슬롯 %d : %s"), i + 1, *ItemID.ToString());
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
+			}
+			return;
+		}
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("슬롯이 가득 찼습니다!"));
 	}
 }
 
@@ -238,37 +322,7 @@ void UV12InventoryComponent::Server_UseItem_Implementation(int32 SlotIndex)
 	OnInventoryUpdated.Broadcast();
 }
 
-void UV12InventoryComponent::AddItem(FName ItemID)
-{
-	if (ItemID == NAME_None) 
-	{
-		return;
-	}
-
-	for(int32 i = 0; i < Items.Num(); i++)
-	{
-		if (Items[i].RowName == NAME_None)
-		{
-			Items[i].RowName = ItemID;
-
-			OnInventoryUpdated.Broadcast();
-
-			if (GEngine)
-			{
-				FString const Msg = FString::Printf(TEXT("아이템 저장! 슬롯 %d : %s"), i + 1, *ItemID.ToString());
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
-			}
-			return;
-		}
-	}
-
-	if(GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("슬롯이 가득 찼습니다!"));
-	}
-}
-
-void UV12InventoryComponent::ConsumeCurrentItem()
+void UV12InventoryComponent::Server_ConsumeCurrentItem_Implementation()
 {
 	if (!Items.IsValidIndex(CurrentSlotIndex))
 	{
@@ -280,14 +334,9 @@ void UV12InventoryComponent::ConsumeCurrentItem()
 	OnInventoryUpdated.Broadcast();
 }
 
-
-void UV12InventoryComponent::UseItem(int32 SlotIndex)
+void UV12InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (!GetOwner() || !GetOwner()->HasAuthority())
-	{
-		Server_UseItem(SlotIndex);
-		return;
-	}
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	Server_UseItem(SlotIndex);	
+	DOREPLIFETIME(UV12InventoryComponent, Items)
 }

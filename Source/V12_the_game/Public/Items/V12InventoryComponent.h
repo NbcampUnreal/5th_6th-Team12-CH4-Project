@@ -31,11 +31,29 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+#pragma region Replication
+
+	UFUNCTION()
+	void OnRep_Items();
+
+	UFUNCTION()
+	void OnRep_CurrentSlotIndex();
+
+	UFUNCTION(Server, Reliable)
+	void Server_AddItem(FName ItemID);
+
 	UFUNCTION(Server, Reliable)
 	void Server_UseItem(int32 SlotIndex);
 
+	UFUNCTION(Server, Reliable)
+	void Server_ConsumeCurrentItem();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+#pragma endregion
+
 public:	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+	UPROPERTY(ReplicatedUsing = OnRep_Items, EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TArray<FInventorySlot> Items;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
@@ -53,15 +71,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FOnInventoryUpdated OnInventoryUpdated;
 
-	UPROPERTY()
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentSlotIndex)
 	int32 CurrentSlotIndex = INDEX_NONE;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItem(FName ItemID);
-	
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void ConsumeCurrentItem();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void UseItem(int32 SlotIndex);
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void ConsumeCurrentItem();
 };
