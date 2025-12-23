@@ -16,20 +16,9 @@ class V12_THE_GAME_API AV12ItemBase : public AActor
 public:	
 	AV12ItemBase();
 
-protected:
-	virtual void BeginPlay() override;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	FName ItemID = "BI";
-
-	UPROPERTY(EditDefaultsOnly, Category = "Item")
-	FString ItemName = "BaseItem";
-
-	UPROPERTY(EditDefaultsOnly, Category = "Item")
-	UTexture2D* ItemIcon;
-
-public:	
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable)
 	virtual void UseItem(class AActor* TargetActor);
@@ -44,4 +33,14 @@ public:
 		return ItemIcon;
 	}
 
+protected:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FName ItemID = "BI";
+
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	FString ItemName = "BaseItem";
+
+	UPROPERTY(EditDefaultsOnly, Category = "Item")
+	UTexture2D* ItemIcon;
 };

@@ -19,10 +19,14 @@ class V12_THE_GAME_API AV12ItemBox_DT : public AActor
 	GENERATED_BODY()
 
 public:
+
 	AV12ItemBox_DT();
 
-protected:
+	virtual void Tick(float DeltaTime) override;
+
 	virtual void BeginPlay() override;
+
+protected:
 
 	void Respawn();
 
@@ -57,8 +61,4 @@ protected:
 
 	FTimerHandle RespawnTimer;
 	FName GetRandomItem();
-
-public:
-	virtual void Tick(float DeltaTime) override;
-
 };

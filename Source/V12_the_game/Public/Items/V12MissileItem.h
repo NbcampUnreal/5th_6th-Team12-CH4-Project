@@ -33,6 +33,7 @@ public:
 	AActor* FindBestTarget(AActor* OwnerActor);
 
 protected:
+
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<AV12HomingMissile> MissileClass;
 

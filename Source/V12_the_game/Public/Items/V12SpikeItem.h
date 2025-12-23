@@ -13,21 +13,22 @@ UCLASS()
 class V12_THE_GAME_API AV12SpikeItem : public AV12ItemBase
 {
 	GENERATED_BODY()
-	
+
+public:
+
 	AV12SpikeItem()
 	{
 		ItemID = "ST";
 		ItemName = "Spike Trap";
 	}
 
-public:
-
-	virtual void UseItem(AActor* TargetActor) override;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Spike")
 	TSubclassOf<AV12SpikeTrap> SpikeTrapClass;
 
+	virtual void UseItem(AActor* TargetActor) override;
+
 protected:
+
 	UFUNCTION(Server, Reliable)
 	void ServerSpawnSpikeTrap(AActor* TargetActor);
 };

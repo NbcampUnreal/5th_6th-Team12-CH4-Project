@@ -14,15 +14,19 @@ class V12_THE_GAME_API AV12SpikeTrap : public AActor
 	GENERATED_BODY()
 	
 public:	
+
 	AV12SpikeTrap();
 
-protected:
-	virtual void BeginPlay() override;
-
-public:	
 	virtual void Tick(float DeltaTime) override;
 
-private:
+	virtual void BeginPlay() override;
+
+	void RaiseUpdate(); // 타이머로 상승 업데이트
+
+	void Destroy(); // 타이머로 액터 제거
+
+protected:
+
 	UPROPERTY(EditAnywhere, Category = "Trap")
 	float StartZOffset = -80.f; // 처음 땅속 스폰 위치
 
@@ -41,7 +45,4 @@ private:
 
 	FTimerHandle RaiseTimer;
 	FTimerHandle DestroyTimer;
-
-	void RaiseUpdate(); // 타이머로 상승 업데이트
-	void Destroy(); // 타이머로 액터 제거
 };

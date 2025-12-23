@@ -28,8 +28,9 @@ class V12_THE_GAME_API UV12InventoryComponent : public UActorComponent
 public:	
 	UV12InventoryComponent();
 
-protected:
 	virtual void BeginPlay() override;
+
+protected:
 
 #pragma region Replication
 
@@ -52,7 +53,8 @@ protected:
 
 #pragma endregion
 
-public:	
+public:
+
 	UPROPERTY(ReplicatedUsing = OnRep_Items, EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	TArray<FInventorySlot> Items;
 

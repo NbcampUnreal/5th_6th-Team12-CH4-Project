@@ -14,6 +14,7 @@ class V12_THE_GAME_API AV12DefenseItem : public AV12ItemBase
 	GENERATED_BODY()
 
 public:
+
 	AV12DefenseItem()
 	{
 		ItemID = "MD";
