@@ -7,15 +7,14 @@
 #include "Items/V12ItemBase.h"
 #include "V12SpeedBoostItem.generated.h"
 
-/**
- * 
- */
+
 UCLASS()
 class V12_THE_GAME_API AV12SpeedBoostItem : public AV12ItemBase
 {
 	GENERATED_BODY()
 	
 public:
+
 	AV12SpeedBoostItem()
 	{
 		ItemID = "SB";

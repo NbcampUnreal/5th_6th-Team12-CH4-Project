@@ -9,7 +9,6 @@
 #include "V12_the_gameSportsCar.h"
 
 
-
 AV12HomingMissile::AV12HomingMissile()
 {
 	PrimaryActorTick.bCanEverTick = true;

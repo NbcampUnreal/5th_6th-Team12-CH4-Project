@@ -10,24 +10,25 @@
 class USphereComponent;
 class UProjectileMovementComponent;
 
+
 UCLASS()
 class V12_THE_GAME_API AV12HomingMissile : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
+
 	AV12HomingMissile();
 
-	void SetHomingTarget(AActor* NewTarget);
-
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void BeginPlay() override;
+
+	void SetHomingTarget(AActor* NewTarget);
 
 	void CheckArrival();
 
 	AActor* GetHomingTarget() const { return HomingTarget; }
-
-protected:
-	virtual void BeginPlay() override;
 
 	UFUNCTION()
 	void OnMissileOverlap(
@@ -41,6 +42,8 @@ protected:
 
 	// Explode
 	void Explode();
+
+protected:
 
 	UPROPERTY(VisibleAnywhere)
 	USphereComponent* Collision;

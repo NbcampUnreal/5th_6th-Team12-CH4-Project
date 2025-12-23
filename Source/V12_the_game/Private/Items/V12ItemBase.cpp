@@ -3,6 +3,7 @@
 
 #include "Items/V12ItemBase.h"
 
+
 AV12ItemBase::AV12ItemBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -22,4 +23,3 @@ void AV12ItemBase::UseItem(class AActor* TargetActor)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Item Used : %s"), *ItemName);
 }
-

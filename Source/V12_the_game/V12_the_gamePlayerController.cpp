@@ -49,27 +49,34 @@ void AV12_the_gamePlayerController::BeginPlay()
 	}
 
 	// Inventory Widget Create
-	if (ItemHUDWidgetClass)
+	if (IsLocalPlayerController())
 	{
-		if (APlayerController* LocalController = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+		if (ItemHUDWidgetClass)
 		{
-			ItemWindowWidget = CreateWidget<UUserWidget>(LocalController, ItemHUDWidgetClass);
+			if (APlayerController* LocalController = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+			{
+				ItemWindowWidget = CreateWidget<UUserWidget>(LocalController, ItemHUDWidgetClass);
 
-			ItemWindowWidget->AddToViewport();
+				ItemWindowWidget->AddToViewport();
+			}
 		}
 	}
-
-	// LockOn Widget Create
-	if (LockOnWidgetClass)
-	{
-		LockOnWidget = CreateWidget<UV12LockOnWidget>(this, LockOnWidgetClass);
-		if (LockOnWidget)
-		{
-			LockOnWidget->AddToViewport(50); // HUD보다 ??
-			LockOnWidget->HideLockOn();
-		}
 	
+	// LockOn Widget Create
+	if (IsLocalPlayerController())
+	{
+		if (LockOnWidgetClass)
+		{
+			LockOnWidget = CreateWidget<UV12LockOnWidget>(this, LockOnWidgetClass);
+			if (LockOnWidget)
+			{
+				LockOnWidget->AddToViewport(50); // HUD보다 위
+				LockOnWidget->HideLockOn();
+			}
+
+		}
 	}
+
 
 	if (IsLocalPlayerController())
 	{
@@ -125,21 +132,21 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 	}
 
 	// LockOn Wiget Position Update
-	if (bIsLockOnMode && LockedTarget && LockOnWidget)
-	{
-		// LockOn Marker Posistion
-		FVector2D ScreenPos;
-		ProjectWorldLocationToScreen(
-			LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
-			ScreenPos, true
-		);
+	//if (bIsLockOnMode && LockedTarget && LockOnWidget)
+	//{
+	//	// LockOn Marker Posistion
+	//	FVector2D ScreenPos;
+	//	ProjectWorldLocationToScreen(
+	//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
+	//		ScreenPos, true
+	//	);
 
-		LockOnMarker->UpdateScreenPosition(ScreenPos);
-	}
+	//	LockOnMarker->UpdateScreenPosition(ScreenPos);
+	//}
 
 	// LockOn Distance Cancel
 
-	// ?�온 중이 ?�니�??�무 것도 ????
+	// ?�온 중이 ?�니�??�무 것도 ????
 	if (LockedTarget)
 	{
 		APawn* MyPawn = GetPawn();
@@ -159,7 +166,6 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			CancelLockOn();
 		}
 	}
-
 }
 
 void AV12_the_gamePlayerController::OnPossess(APawn* InPawn)
@@ -322,7 +328,7 @@ void AV12_the_gamePlayerController::ConfirmMissileFire()
 	}
 }
 
-// ?�온 모드 ?�제
+// ?�온 모드 ?�제
 void AV12_the_gamePlayerController::CancelLockOn()
 {
 	if (!bIsLockOnMode)
@@ -355,7 +361,7 @@ void AV12_the_gamePlayerController::ChangeLockOnTarget()
 
 	CycleTarget();
 
-	// ?�겟이 바뀌었?�면 UI 갱신
+	// ?�겟이 바뀌었?�면 UI 갱신
 	if (LockOnWidget && LockedTarget)
 	{
 		LockOnWidget->ShowLockOn();

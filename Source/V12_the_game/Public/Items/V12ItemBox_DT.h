@@ -1,4 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// V12ItemBox_DT.h
 
 #pragma once
 
@@ -11,16 +12,21 @@
 class URotatingMovementComponent;
 class UStaticMeshComponent;
 
+
 UCLASS()
 class V12_THE_GAME_API AV12ItemBox_DT : public AActor
 {
 	GENERATED_BODY()
 
 public:
+
 	AV12ItemBox_DT();
 
-protected:
+	virtual void Tick(float DeltaTime) override;
+
 	virtual void BeginPlay() override;
+
+protected:
 
 	void Respawn();
 
@@ -39,6 +45,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Item Box")
 	UDataTable* ItemDataTable;
 
+	// 상태 동기화를 위한 멀티캐스트 함수
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SetActive(bool bActive);
+
 	UFUNCTION()
 	void OnOverlap(
 		UPrimitiveComponent* OverlappedComp,
@@ -51,8 +61,4 @@ protected:
 
 	FTimerHandle RespawnTimer;
 	FName GetRandomItem();
-
-public:
-	virtual void Tick(float DeltaTime) override;
-
 };

@@ -9,6 +9,7 @@
 
 class AV12HomingMissile;
 
+
 UCLASS()
 class V12_THE_GAME_API AV12MissileItem : public AV12ItemBase
 {
@@ -32,6 +33,7 @@ public:
 	AActor* FindBestTarget(AActor* OwnerActor);
 
 protected:
+
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<AV12HomingMissile> MissileClass;
 
