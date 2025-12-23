@@ -117,53 +117,70 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 {
 	Super::Tick(Delta);
 
-	/// RPM Update
-	if (IsValid(VehiclePawn) && IsValid(SpeedUI) && IsValid(VehiclePawn))
+	// LOCAL UI UPDATE ONLY
+	if (IsLocalController())
 	{
-		float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
-		SpeedUI->UpdateRPM(nowRPM);
-		// UE_LOG(LogTemp, Warning, TEXT("Current RPM: %f"), nowRPM);
-	}
-
-	if (IsValid(VehiclePawn) && IsValid(VehicleUI))
-	{
-		VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
-		VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
-	}
-
-	// LockOn Wiget Position Update
-	//if (bIsLockOnMode && LockedTarget && LockOnWidget)
-	//{
-	//	// LockOn Marker Posistion
-	//	FVector2D ScreenPos;
-	//	ProjectWorldLocationToScreen(
-	//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
-	//		ScreenPos, true
-	//	);
-
-	//	LockOnMarker->UpdateScreenPosition(ScreenPos);
-	//}
-
-	// LockOn Distance Cancel
-
-	// ?�온 중이 ?�니�??�무 것도 ????
-	if (LockedTarget)
-	{
-		APawn* MyPawn = GetPawn();
-		if (!MyPawn)
+		// 25.12.23. mpyi
+		// beginplay is late, on multiplay game.
+		// if VehiclePawn is null, try to get it again.
+		if (!IsValid(VehiclePawn))
 		{
-			CancelLockOn();
-			return;
+			VehiclePawn = Cast<AV12_the_gamePawn>(GetPawn());
+
+			if (!IsValid(VehiclePawn))
+			{
+				return;
+			}
 		}
 
-		const float Distance = FVector::Dist(
-			LockedTarget->GetActorLocation(),
-			MyPawn->GetActorLocation()
-		);
-
-		if (Distance > MaxLockOnDistance)
+		/// RPM Update
+		if (IsValid(VehiclePawn) && IsValid(SpeedUI))
 		{
-			CancelLockOn();
+			float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
+			SpeedUI->UpdateRPM(nowRPM);
+			// UE_LOG(LogTemp, Warning, TEXT("Current RPM: %f"), nowRPM);
+		}
+
+		if (IsValid(VehiclePawn) && IsValid(VehicleUI))
+		{
+			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
+			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
+		}
+
+		// LockOn Wiget Position Update
+		//if (bIsLockOnMode && LockedTarget && LockOnWidget)
+		//{
+		//	// LockOn Marker Posistion
+		//	FVector2D ScreenPos;
+		//	ProjectWorldLocationToScreen(
+		//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
+		//		ScreenPos, true
+		//	);
+
+		//	LockOnMarker->UpdateScreenPosition(ScreenPos);
+		//}
+
+		// LockOn Distance Cancel
+
+		// ?�온 중이 ?�니�??�무 것도 ????
+		if (LockedTarget)
+		{
+			APawn* MyPawn = GetPawn();
+			if (!MyPawn)
+			{
+				CancelLockOn();
+				return;
+			}
+
+			const float Distance = FVector::Dist(
+				LockedTarget->GetActorLocation(),
+				MyPawn->GetActorLocation()
+			);
+
+			if (Distance > MaxLockOnDistance)
+			{
+				CancelLockOn();
+			}
 		}
 	}
 }
