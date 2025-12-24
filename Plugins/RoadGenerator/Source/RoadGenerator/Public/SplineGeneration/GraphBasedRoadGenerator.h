@@ -43,6 +43,12 @@ public:
 		bool bIsClosed,
 		USplineComponent*& OutGeneratedSpline);
 
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")// this is for reconstructing segment into a spline
+	bool GenerateCurveSegmentSpline(
+		const FCurveSegment& CurveSegments,
+		bool bIsClosed,
+		USplineComponent*& OutGeneratedSpline);
+
 
 protected:
 

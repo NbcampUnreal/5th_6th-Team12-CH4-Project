@@ -65,7 +65,7 @@ bool USplineCorrectionHelper::GetSplineFromActor(const AActor* InActor, USplineC
 }
 
 bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, float DesiredSampleDistance, int32 MaxSamplePoints,
-                                             ELocationType Type,float& OutCorrectedDistance, TArray<FCurvePointData>& OutSplinePoints)
+                                             ELocationType Type, bool bIsClosed,float& OutCorrectedDistance, TArray<FCurvePointData>& OutSplinePoints)
 {
 	//reset first
 	OutSplinePoints.Reset();
@@ -102,21 +102,26 @@ bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, flo
 		return false;
 	}
 
-	//Perfeclty deviding count
+	//Perfect division count
 	OutCorrectedDistance = SplineLength / SplineSegmentCount;
-
+	//local or world
 	const ESplineCoordinateSpace::Type CoordSpace =(Type == ELocationType::Local)?
 	ESplineCoordinateSpace::Local: ESplineCoordinateSpace::World;
 
 	OutSplinePoints.Reserve(RequiredPoints);// reserve the room for new points
+
+	TArray<FVector> Locations;
+	Locations.Reserve(RequiredPoints);// to calculate the tangent, collect the location first
+	for (int32 i = 0; i <= SplineSegmentCount; i++)
+	{
+		Locations.Add(SourceSpline->GetLocationAtDistanceAlongSpline(i * OutCorrectedDistance, CoordSpace));
+	}
 	
 	for (int32 i = 0; i <= SplineSegmentCount; i++)
 	{
-		const float Distance = i * OutCorrectedDistance;
-
-		FVector Location = SourceSpline->GetLocationAtDistanceAlongSpline(Distance, CoordSpace);
-		FVector Tangent  = SourceSpline->GetDirectionAtDistanceAlongSpline(Distance, CoordSpace);
-		FVector Up       = SourceSpline->GetUpVectorAtDistanceAlongSpline(Distance, CoordSpace);
+		/*FVector Location = Locations[i];
+		FVector Up       = SourceSpline->GetUpVectorAtDistanceAlongSpline(i * OutCorrectedDistance, CoordSpace);
+		FVector Tangent  = ComputeTangentAtIndex(Locations, i, bIsClosed);
 		FVector Right    = FVector::CrossProduct(Tangent, Up).GetSafeNormal();
 
 		FCurvePointData PointData;
@@ -125,6 +130,14 @@ bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, flo
 		PointData.ForwardDirection = Tangent.GetSafeNormal();
 		PointData.UpDirection = Up.GetSafeNormal();
 		PointData.RightDirection = Right;
+
+		//Calculate tangent of the point
+		PointData.Tangent = (i < SplineSegmentCount)?
+		(SourceSpline->GetLocationAtDistanceAlongSpline(Distance + OutCorrectedDistance, CoordSpace) - Location).GetSafeNormal()
+		//or
+		: (Location - SourceSpline->GetLocationAtDistanceAlongSpline(Distance - OutCorrectedDistance, CoordSpace)).GetSafeNormal();
+
+
 
 		// Curvature estimate
 		if (i == 0 || i == SplineSegmentCount)
@@ -144,6 +157,27 @@ bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, flo
 			PointData.CurvatureValue =
 				FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(PrevDir, NextDir)));
 		}
+
+		OutSplinePoints.Add(PointData);*/ // with no tangent calculation
+
+		FVector Location = Locations[i]; //get from the precollected locations
+		FVector Up = SourceSpline->GetUpVectorAtDistanceAlongSpline(i * OutCorrectedDistance, CoordSpace).GetSafeNormal();
+		FVector Tangent = ComputeTangentAtIndex(Locations, i, bIsClosed);//use helper
+		FVector Right = FVector::CrossProduct(Tangent, Up).GetSafeNormal();// make a right vector by cross product
+
+		FCurvePointData PointData;//set new point data
+		PointData.Location = Location;
+		PointData.DistanceFromSlineOGPoint = i * OutCorrectedDistance;
+		PointData.ForwardDirection = Tangent;
+		PointData.UpDirection = Up;
+		PointData.RightDirection = Right;
+		PointData.Tangent = Tangent;
+
+		// Curvature calculation
+		if (i == 0 || i == SplineSegmentCount)
+			PointData.CurvatureValue = 0.f;
+		else
+			PointData.CurvatureValue = ComputeCurvature(Locations[i-1], Location, Locations[i+1]);
 
 		OutSplinePoints.Add(PointData);
 	}
@@ -264,9 +298,11 @@ bool USplineCorrectionHelper::DetectCurvePeaks(const TArray<FCurvePointData>& Cu
 		const float CurrC = CurvePoints[i].CurvatureValue;
 		const float NextC = CurvePoints[NextIdx].CurvatureValue;
 
-		//skipping conditions
+		// Peak condition 
 		if (CurrC < PrevC) continue;
 		if (CurrC < NextC) continue;
+
+		// Threshold check
 		if (CurrC < MinCurvatureThreshold) continue;
 
 		//peek found
@@ -304,7 +340,7 @@ struct FCurveEnvelope
 
 bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponent* SourceSpline,
 	const TArray<FCurvePeak>& Peaks, float EntranceBufferDistance, float ExitRecoveryDistance,
-	float MidpointAlphaOffset,ELocationType Type, FCurveEvaluationValues EvaluationInfo, TArray<FCurveSegment>& OutSegments)
+	float MidpointAlphaOffset,ELocationType Type, FCurveEvaluationValues EvaluationInfo, bool bIsClosed, TArray<FCurveSegment>& OutSegments)
 {
 	//reset
 	OutSegments.Empty();
@@ -315,7 +351,6 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 			TEXT("USplineCorrectionHelper::DetectCurveSegmentsFromPeaks >> Invalid SourceSpline"));
 		return false;
 	}
-
 	if (Peaks.IsEmpty())
 	{
 		UE_LOG(SplineCorrectionHelper, Warning,
@@ -338,7 +373,9 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 	//Build curve envelope data
 	TArray<FCurveEnvelope> Envelopes;
 	Envelopes.Reserve(Peaks.Num());
-
+	
+	const float MinSegmentLength = 1.0f;//safety -> min segment
+	
 	for (const FCurvePeak& Peak : Peaks)
 	{
 		const float PeakDist = Peak.Point.DistanceFromSlineOGPoint;
@@ -348,7 +385,7 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 			(EvaluationInfo.MaxExpectedCurvature - EvaluationInfo.ComfortCurvature);
 		Severity = FMath::Clamp(Severity, 0.f, 1.f);
 
-		const bool bAsymmetric = Severity > KINDA_SMALL_NUMBER;
+		const bool bAsymmetric = Severity > KINDA_SMALL_NUMBER;//round curve = symmetric, a spiked curve = asymmetric
 		
 		// Scale buffer by curvature
 		const float Entrance =
@@ -366,6 +403,15 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 		Env.Peak = &Peak;
 		Env.Severity      = Severity;
 		Env.bAsymmetric   = bAsymmetric;
+
+		//Safety ++
+		// Ensure minimum length
+		if (Env.EndDistance - Env.StartDistance < MinSegmentLength)
+		{
+			float Half = MinSegmentLength * 0.5f;
+			Env.StartDistance = FMath::Max(0.f, PeakDist - Half);
+			Env.EndDistance   = FMath::Min(SplineLength, PeakDist + Half);
+		}
 		
 		// add data
 		Envelopes.Add(Env);	
@@ -387,12 +433,8 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 
 		const float OverlapMid =(CurveA.EndDistance + CurveB.StartDistance) * 0.5f;
 
-		float BiasAlpha = 0.f;
-		if (CurveA.bAsymmetric || CurveB.bAsymmetric)
-		{
-			const float CombinedSeverity =FMath::Max(CurveA.Severity, CurveB.Severity);
-			BiasAlpha = MidpointAlphaOffset * CombinedSeverity;
-		}
+		float BiasAlpha = (CurveA.bAsymmetric || CurveB.bAsymmetric) ?
+		MidpointAlphaOffset * FMath::Max(CurveA.Severity, CurveB.Severity) /* or */:  0.f;
 
 		const float OverlapLen = CurveA.EndDistance - CurveB.StartDistance;
 		const float AdjustedMid =OverlapMid + OverlapLen * 0.5f * BiasAlpha;
@@ -404,7 +446,33 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 			TEXT("Resolved curve overlap at %.2f (severity %.2f)"),
 			CurveA.EndDistance, FMath::Max(CurveA.Severity, CurveB.Severity));
 	}
+	
+	// if the road is closed
+	if (bIsClosed && Envelopes.Num() > 1)
+	{
+		FCurveEnvelope& First = Envelopes[0];
+		FCurveEnvelope& Last  = Envelopes.Last();
 
+		if (Last.EndDistance > SplineLength)
+		{
+			Last.EndDistance -= SplineLength;
+		}
+		
+		if (Last.EndDistance > First.StartDistance)
+		{
+			float OverlapMid = (Last.EndDistance + First.StartDistance) * 0.5f;
+			
+			float BiasAlpha  = (Last.bAsymmetric || First.bAsymmetric) ?
+			MidpointAlphaOffset * FMath::Max(Last.Severity, First.Severity) : 0.f;
+			
+			float OverlapLen = Last.EndDistance - First.StartDistance;
+			float AdjustedMid = OverlapMid + 0.5f * OverlapLen * BiasAlpha;
+
+			Last.EndDistance = FMath::Clamp(AdjustedMid, Last.PeakDistance, First.PeakDistance);
+			First.StartDistance = Last.EndDistance;
+		}
+	}
+	
 	// --- finalize segments ---
 	float CurrentDist = 0.f;
 
@@ -427,18 +495,17 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 		}
 
 		// Curve segment
-		FCurveSegment Curve;
-		Curve.IsCurve  = true;
-		Curve.PeakPoint = *Env.Peak;
+        if (Env.StartDistance + KINDA_SMALL_NUMBER < Env.EndDistance)
+        {
+            FCurveSegment Curve;
+            Curve.IsCurve   = true;
+            Curve.PeakPoint = *Env.Peak;
+            Curve.StartPoint.Location = SourceSpline->GetLocationAtDistanceAlongSpline(Env.StartDistance, CoordSpace);
+            Curve.EndPoint.Location   = SourceSpline->GetLocationAtDistanceAlongSpline(Env.EndDistance, CoordSpace);
+            OutSegments.Add(Curve);
+        }
 
-		Curve.StartPoint.Location =
-			SourceSpline->GetLocationAtDistanceAlongSpline(Env.StartDistance, CoordSpace);
-		Curve.EndPoint.Location =
-			SourceSpline->GetLocationAtDistanceAlongSpline(Env.EndDistance, CoordSpace);
-
-		OutSegments.Add(Curve);
-
-		CurrentDist = Env.EndDistance;
+        CurrentDist = Env.EndDistance;
 	}
 
 	// Tail straight
@@ -452,6 +519,19 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 			SourceSpline->GetLocationAtDistanceAlongSpline(SplineLength, CoordSpace);
 
 		OutSegments.Add(Straight);
+	}
+	
+	// For closed loop, wrap first segment if needed
+	if (bIsClosed && OutSegments.Num() > 1)
+	{
+		FCurveSegment& First = OutSegments[0];
+		FCurveSegment& Last  = OutSegments.Last();
+
+		if (Last.EndPoint.Location.Equals(First.StartPoint.Location, KINDA_SMALL_NUMBER))
+		{
+			Last.EndPoint = First.EndPoint;
+			OutSegments.RemoveAt(0);
+		}
 	}
 
 	UE_LOG(SplineCorrectionHelper, Log,
@@ -510,11 +590,7 @@ bool USplineCorrectionHelper::ComputeRoadRoll(USplineComponent* Spline, const TA
 		//TODO: Make A case of condition for the curvature evaluate condition
 		// for now, just 2d curvature
 		//TangentsTemp[i] =Spline->GetDirectionAtDistanceAlongSpline(Distances[i], ESplineCoordinateSpace::World);
-		TangentsTemp[i] = ProjectToGroundPlane(
-			Spline->GetDirectionAtDistanceAlongSpline(
-				Distances[i],
-				ESplineCoordinateSpace::World)
-		).GetSafeNormal();
+		TangentsTemp[i] = Spline->GetDirectionAtDistanceAlongSpline(Distances[i],ESplineCoordinateSpace::World).GetSafeNormal();
 
 		OutTangents.Add(TangentsTemp[i]);
 	}
@@ -800,5 +876,87 @@ bool USplineCorrectionHelper::GetNeighborIndices(int32 Index, int32 Num, bool bI
     
 	OutPrev = Index - 1;
 	OutNext = Index + 1;
+	return true;
+}
+
+FVector USplineCorrectionHelper::ComputeTangentAtIndex(const TArray<FVector>& Locations, int32 Index, bool bIsClosed)
+{
+	const int32 NumPoints = Locations.Num();
+	if (NumPoints < 2)
+		return FVector::ZeroVector;
+
+	int32 PrevIdx, NextIdx;
+	if (!GetNeighborIndices(Index, NumPoints, bIsClosed, PrevIdx, NextIdx))
+	{
+		// Open spline endpoints → fallback to forward/backward difference
+		if (Index == 0)
+		{
+			return (Locations[1] - Locations[0]).GetSafeNormal();
+		}
+		return (Locations.Last() - Locations[NumPoints - 2]).GetSafeNormal();
+	}
+
+	// Central difference
+	return (Locations[NextIdx] - Locations[PrevIdx]).GetSafeNormal();
+}
+
+bool USplineCorrectionHelper::FlattenCurvePointsToTheDirection(const TArray<FCurvePointData>& SplineCurvePoints,
+	bool IsClosed, FVector InProjectionNormal, TArray<float>& OutCurvatureValues)
+{
+	//Reset
+	OutCurvatureValues.Reset();
+
+	const int32 SplineCurveCount=SplineCurvePoints.Num();
+	if (SplineCurveCount<3)
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Not Enought Curvepoints [%d]<3"),
+			SplineCurveCount);
+		return false;
+	}
+
+	const FVector ProjectionNormal=InProjectionNormal.GetSafeNormal();
+	if (ProjectionNormal.IsNearlyZero())
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Invalid ProjectionNormal"));
+		return false;
+	}
+
+	TArray<FVector> ProjectedPoints;//Catcher
+	ProjectedPoints.SetNum(SplineCurveCount);
+	
+	for (int32 i=0; i<SplineCurveCount; ++i)// get projected point locations
+	{
+		const FVector& Point=SplineCurvePoints[i].Location;
+		ProjectedPoints[i]= Point-FVector::DotProduct(Point, ProjectionNormal)*ProjectionNormal;
+	}
+
+	OutCurvatureValues.SetNum(SplineCurveCount);
+
+	for (int32 i=0; i<SplineCurveCount; ++i)
+	{
+		int32 PreviousIndex, NextIndex;
+
+		if (!GetNeighborIndices(i,SplineCurveCount,IsClosed, PreviousIndex, NextIndex ))
+		{
+			OutCurvatureValues[i] = 0.f;
+			continue;
+		}
+
+		const FVector& Prev=ProjectedPoints[PreviousIndex];
+		const FVector& Current=ProjectedPoints[i];
+		const FVector& Next= ProjectedPoints[NextIndex];
+
+		const FVector DirectionA=(Current-Prev).GetSafeNormal();
+		const FVector DirectionB=(Next-Current).GetSafeNormal();
+
+		const float DotValue = FVector::DotProduct(DirectionA, DirectionB);
+		//angle based curvature value
+		const float AngleValue=FMath::Acos(FMath::Clamp(DotValue, -1.f, 1.f));
+
+		OutCurvatureValues[i]=AngleValue;// return angle in radians
+	}
+
 	return true;
 }

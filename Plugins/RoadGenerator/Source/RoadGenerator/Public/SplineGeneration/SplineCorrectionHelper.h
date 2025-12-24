@@ -66,6 +66,7 @@ public:
 		float DesiredSampleDistance,
 		int32 MaxSamplePoints,// to prevent too many spline point generating
 		ELocationType Type,
+		bool bIsClosed,// for tnagent calculation
 		//Outs
 		float& OutCorrectedDistance,
 		TArray<FCurvePointData>& OutSplinePoints);// not ouptus the FCurvePointData with more info
@@ -105,6 +106,7 @@ public:
 		float MidpointAlphaOffset,// 0 mid, + more to forward, - more to backward
 		ELocationType Type,
 		FCurveEvaluationValues EvaluationInfo,
+		bool bIsClosed,
 		//out
 		TArray<FCurveSegment>& OutSegments);
 
@@ -213,12 +215,22 @@ private:
     	//out
     	int32& OutPrev,
     	int32& OutNext);
-	
-	// this is for flattening the 3d curve and check only the 2D curve peek 
-	static FVector ProjectToGroundPlane(const FVector& V)
-	{
-		return FVector(V.X, V.Y, 0.f);
-	}
+
+	// for tangent calculation
+	static FVector ComputeTangentAtIndex(
+		const TArray<FVector>& Locations,
+		int32 Index,
+		bool bIsClosed);
+
+	// project and flatten the curve for
+	// after that use them for the peak
+
+	static bool FlattenCurvePointsToTheDirection(
+		const TArray<FCurvePointData>& SplineCurvePoints,
+		bool IsClosed,
+		FVector ProjectionNormal,
+		//out
+		TArray<float>& OutCurvatureValues);
 
 
 #pragma endregion

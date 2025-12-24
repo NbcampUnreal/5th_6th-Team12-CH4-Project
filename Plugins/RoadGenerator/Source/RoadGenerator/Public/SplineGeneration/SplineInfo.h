@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SplineComponent.h"
 #include "SplineInfo.generated.h"
 /**
  *  this is for structs required in making splines
  */
+
+
 UENUM(BlueprintType)
 enum class ELocationType:uint8
 {
@@ -34,6 +37,9 @@ struct FCurvePointData
 
 	UPROPERTY(BlueprintReadOnly)
 	float CurvatureValue;
+
+	UPROPERTY(BlueprintReadOnly)//complementary value for the segment building
+	FVector Tangent; // for point-level evaluation
 };
 
 USTRUCT(BlueprintType)
@@ -48,7 +54,7 @@ struct FCurvePeak
 	float Curvature;
 };
 
-//Required struct for segment info
+//Required struct for segment info ++ Aslo for reconstructing part of the spline
 USTRUCT(BlueprintType)
 struct FCurveSegment
 {
@@ -58,13 +64,28 @@ struct FCurveSegment
 	FCurvePointData StartPoint ;
 
 	UPROPERTY(BlueprintReadOnly)
-	FCurvePeak PeakPoint;// the curve peak
+	FCurvePeak PeakPoint;// the curve peak( will be also used to calculate tangents for curve spline)
 
 	UPROPERTY(BlueprintReadOnly)
 	FCurvePointData EndPoint;
-
+	
+	UPROPERTY(BlueprintReadOnly)
+	TEnumAsByte<ESplinePointType::Type> PointType = ESplinePointType::Curve;
+	
 	UPROPERTY(BlueprintReadOnly)// if it is curve or just straight line
 	bool IsCurve=false;// if it is yes, ignore the peak
+
+	
+	UPROPERTY(BlueprintReadOnly)
+	FVector StartTangent;
+
+	// Tangent at the end point (can be calculated from End -> Peak or End -> Start)
+	UPROPERTY(BlueprintReadOnly)
+	FVector EndTangent;
+
+	// segment length, for procedural sampling or subdivision
+	UPROPERTY(BlueprintReadOnly)
+	float SegmentLength = 0.f;
 };
 
 

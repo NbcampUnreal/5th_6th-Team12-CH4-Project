@@ -57,3 +57,51 @@ bool AGraphBasedRoadGenerator::GenerateSplineComponent_Uniformed(const TArray<FC
 	OutGeneratedSpline->UpdateSpline();// now, update the spline
 	return true;
 }
+
+bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& CurveSegment, bool bIsClosed,
+	USplineComponent*& OutGeneratedSpline)
+{
+	if (!OutGeneratedSpline)
+	{
+		UE_LOG(RoadGeneratorLog, Error,
+			TEXT("ARoadGenerator::GenerateCurveSegmentSpline >> OutGeneratedSpline is null"));
+		return false;
+	}
+
+	// Clear existing points
+	OutGeneratedSpline->ClearSplinePoints();
+
+	int32 NumSamples = 10; 
+
+	if (!CurveSegment.IsCurve)// not curve, but just staight line
+	{
+		// Straight segment: just start and end
+		OutGeneratedSpline->AddSplinePoint(CurveSegment.StartPoint.Location, ESplineCoordinateSpace::Local);
+		OutGeneratedSpline->AddSplinePoint(CurveSegment.EndPoint.Location, ESplineCoordinateSpace::Local);
+	}
+	else
+	{
+		// Curve segment: interpolate points
+		NumSamples = FMath::Max(NumSamples, 2);
+
+		for (int32 i = 0; i <= NumSamples; ++i)
+		{
+			float Alpha = i / static_cast<float>(NumSamples);
+			FVector InterpolatedLocation = FMath::Lerp(CurveSegment.StartPoint.Location, CurveSegment.EndPoint.Location, Alpha);
+			OutGeneratedSpline->AddSplinePoint(InterpolatedLocation, ESplineCoordinateSpace::Local);
+		}
+	}
+
+	//set closed loop
+	OutGeneratedSpline->SetClosedLoop(bIsClosed);
+
+	// Update tangents
+	OutGeneratedSpline->UpdateSpline();
+
+	UE_LOG(RoadGeneratorLog, Log,
+		TEXT("ARoadGenerator::GenerateCurveSegmentSpline >> Generated %s segment with %d points"),
+		CurveSegment.IsCurve ? TEXT("curve") : TEXT("straight"),
+		OutGeneratedSpline->GetNumberOfSplinePoints());
+
+	return true;
+}
