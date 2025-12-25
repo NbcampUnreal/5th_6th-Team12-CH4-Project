@@ -8,6 +8,7 @@
 //Log
 DEFINE_LOG_CATEGORY(SplineCorrectionHelper);
 
+//============ Reference Getter =============//
 bool USplineCorrectionHelper::GetSplineFromActor(const AActor* InActor, USplineComponent*& OutSpline, const FName& SplineTag)
 {
 	OutSpline=nullptr;
@@ -64,6 +65,8 @@ bool USplineCorrectionHelper::GetSplineFromActor(const AActor* InActor, USplineC
 	return true;
 }
 
+//=============================================== Resampleing ========================================================//
+#pragma region CurvePoints Resampling
 bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, float DesiredSampleDistance, int32 MaxSamplePoints,
                                              ELocationType Type, bool bIsClosed,float& OutCorrectedDistance, TArray<FCurvePointData>& OutSplinePoints)
 {
@@ -187,6 +190,11 @@ bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, flo
 			SplineSegmentCount, OutCorrectedDistance);
 	return true;
 }
+#pragma endregion
+//--------------------------------------------------------------------------------------------------------------------//
+
+//==============================================  Smoothing  =========================================================//
+#pragma region Smoothing
 
 TArray<FCurvePointData> USplineCorrectionHelper::SmoothCurvePoints(const TArray<FCurvePointData>& InCurvePoints, float SmoothnessWeight,
 	int32 IterationCount,bool bIsClosed)
@@ -212,8 +220,6 @@ TArray<FCurvePointData> USplineCorrectionHelper::SmoothCurvePoints(const TArray<
 
 	return Result;
 }
-
-
 
 void USplineCorrectionHelper::SmoothCurvePoints_Internal(TArray<FVector>& InCurvePointLocations, float SmoothnessWeight, bool bIsClosed)
 {
@@ -242,8 +248,8 @@ void USplineCorrectionHelper::SmoothCurvePoints_Internal(TArray<FVector>& InCurv
 
 	InCurvePointLocations = MoveTemp(Temp);
 }
-
-
+#pragma endregion
+//--------------------------------------------------------------------------------------------------------------------//
 
 void USplineCorrectionHelper::UpdateCurvePointsDirectionsAndCurvature(TArray<FCurvePointData>& CurvePoints, bool bIsClosed)
 {
@@ -275,53 +281,150 @@ void USplineCorrectionHelper::UpdateCurvePointsDirectionsAndCurvature(TArray<FCu
 	}
 }
 
+//=======================================<< Peak Detection >>=========================================================//
+#pragma region Peak Detection
 bool USplineCorrectionHelper::DetectCurvePeaks(const TArray<FCurvePointData>& CurvePoints, float MinCurvatureThreshold,bool bIsClosed,
-	TArray<FCurvePeak>& OutPeaks)
+                                               TArray<FCurvePeak>& OutPeaks)
 {
-	OutPeaks.Empty();//reset
+	TArray<FVector> AnalysisPoints;
+	
+	AnalysisPoints.Reserve(CurvePoints.Num());
 
-	if (CurvePoints.Num() < 3)
+	for (const FCurvePointData& P : CurvePoints)
 	{
-		UE_LOG(SplineCorrectionHelper, Error,
-		   TEXT("USplineCorrectionHelper::DetectCurvePeaks >> not enough curve points"));
-		return false;
+		AnalysisPoints.Add(P.Location);
 	}
 
-	const int32 Num = CurvePoints.Num();
-	for (int32 i = 0; i < Num; ++i)
+	return DetectCurvePeaks_Internal(// now use internal function
+		CurvePoints,
+		AnalysisPoints,
+		MinCurvatureThreshold,
+		bIsClosed,
+		OutPeaks);
+}
+
+bool USplineCorrectionHelper::DetectCurvePeaks_BasedOnNormal(const TArray<FCurvePointData>& CurvePoints,
+	const FVector& ProjectionNormal, float MinCurvatureThreshold, bool bIsClosed, TArray<FCurvePeak>& OutPeaks)
+{
+	TArray<FVector> FlattenedPoints;//catcher
+	if (!FlattenCurvePointsByProjectionNormal(CurvePoints,bIsClosed,ProjectionNormal,FlattenedPoints))
 	{
-		int32 PrevIdx, NextIdx;
-		if (!GetNeighborIndices(i, Num, bIsClosed, PrevIdx, NextIdx))
-			continue;
+		return false;//flattening failed
+	}
 
-		const float PrevC = CurvePoints[PrevIdx].CurvatureValue;
-		const float CurrC = CurvePoints[i].CurvatureValue;
-		const float NextC = CurvePoints[NextIdx].CurvatureValue;
+	return DetectCurvePeaks_Internal(CurvePoints,FlattenedPoints,MinCurvatureThreshold,bIsClosed,OutPeaks);
+}
 
-		// Peak condition 
-		if (CurrC < PrevC) continue;
-		if (CurrC < NextC) continue;
-
-		// Threshold check
-		if (CurrC < MinCurvatureThreshold) continue;
-
-		//peek found
-		FCurvePeak Peak;
-		Peak.Point = CurvePoints[i];
-		Peak.Curvature = CurrC;
-		OutPeaks.Add(Peak);
+// --------- Internal helpers
+bool USplineCorrectionHelper::DetectCurvePeaks_Internal(const TArray<FCurvePointData>& CurvePoints,
+	const TArray<FVector>& AnalysisPoints, float MinDeviationThreshold, bool bIsClosed, TArray<FCurvePeak>& OutPeaks)
+{
+	OutPeaks.Reset();//reset first
+	
+	const int32 CurvePointCount = AnalysisPoints.Num();
+	if (CurvePoints.Num() != CurvePointCount/*Not Matching*/)
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::DetectCurvePeaks_Internal >> CurvePoints and AnalysisPoints does not match"));
+		return false;
 	}
 	
-	if (OutPeaks.Num() <= 0)
+	if ((bIsClosed && CurvePointCount < 3)/*ClosedLoop Condition*/ || (!bIsClosed && CurvePointCount<2))/*None_looping Condition*/
 	{
+		FString ErrorMessage = bIsClosed? TEXT("Closed Loop [3]"):TEXT("Unclosed Spline [2]");
 		UE_LOG(SplineCorrectionHelper, Error,
-				   TEXT("USplineCorrectionHelper::DetectCurvePeaks >> not peak detected"));
+			TEXT("USplineCorrectionHelper::DetectCurvePeaks_Internal >> not enough point for %s <%d."),
+			*ErrorMessage, CurvePointCount);
 		return false;
 	}
-	// peak found and outputted
+
+	for (int32 i = 0; i < CurvePointCount; ++i)
+	{
+		int32 PrevIdx, NextIdx;
+		if (!GetNeighborIndices(i, CurvePointCount, bIsClosed, PrevIdx, NextIdx))
+		{
+			continue;
+		}
+
+		TArray<FVector> Segment;
+		Segment.Reserve(3);
+		Segment.Add(AnalysisPoints[PrevIdx]);
+		Segment.Add(AnalysisPoints[i]);
+		Segment.Add(AnalysisPoints[NextIdx]);
+
+		FVector PeakPoint;
+		float Deviation = 0.f;
+
+		if (!GetPeakPointFromSplineCurveSegment(Segment,PeakPoint,Deviation))
+		{
+			continue;
+		}
+
+		if (Deviation < MinDeviationThreshold)
+		{
+			continue;
+		}
+
+		FCurvePeak Peak;
+		Peak.Point = CurvePoints[i];
+		Peak.Curvature = Deviation; // semantic: severity
+
+		OutPeaks.Add(Peak);
+	}
+
+	return OutPeaks.Num() > 0;
+}
+bool USplineCorrectionHelper::FlattenCurvePointsByProjectionNormal(const TArray<FCurvePointData>& SplineCurvePoints,
+	bool IsClosed, FVector InProjectionNormal, TArray<FVector>& OutFlattenedLocations)
+{
+	//Reset
+	OutFlattenedLocations.Reset();
+
+	const int32 SplineCurveCount=SplineCurvePoints.Num();
+	if ((IsClosed && SplineCurveCount<3) || (!IsClosed&&SplineCurveCount<2))
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Not Enought Curvepoints [%d]"),
+			SplineCurveCount);
+		return false;
+	}
+
+	const FVector ProjectionNormal=InProjectionNormal.GetSafeNormal();
+	if (ProjectionNormal.IsNearlyZero())
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Invalid ProjectionNormal"));
+		return false;
+	}
+
+	// Use first point as plane origin
+	const FVector PlaneOrigin = SplineCurvePoints[0].Location;
+	
+	const FVector Normal = ProjectionNormal.GetSafeNormal();// normalize just in case
+	
+	for (int32 i = 0; i < SplineCurveCount; ++i)
+	{
+		const FVector& P = SplineCurvePoints[i].Location;
+
+		// Project point onto plane
+		const float SignedDistance = FVector::DotProduct(P - PlaneOrigin, Normal);
+		const FVector Flattened = P - SignedDistance * Normal;
+
+		OutFlattenedLocations.Add(Flattened);
+	}
+
+	// Closed splines keep logical closure, not duplicated point
 	return true;
 }
 
+#pragma endregion
+//====================================================================================================================//
+
+
+
+
+//==================================== Curve Segment Detection =======================================================//
+#pragma region CurveDetection
 
 //Internal cpp struct for DetectCurveSegmentsFromPeaks
 struct FCurveEnvelope
@@ -336,7 +439,6 @@ struct FCurveEnvelope
 	float Severity;
 	bool bAsymmetric;
 };
-
 
 bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponent* SourceSpline,
 	const TArray<FCurvePeak>& Peaks, float EntranceBufferDistance, float ExitRecoveryDistance,
@@ -429,7 +531,7 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 		FCurveEnvelope& CurveA = Envelopes[i];
 		FCurveEnvelope& CurveB = Envelopes[i + 1];
 
-		if (CurveA.EndDistance < CurveB.StartDistance) continue;// not passed
+		if (CurveA.EndDistance < CurveB.StartDistance) continue;// not passedsp
 
 		const float OverlapMid =(CurveA.EndDistance + CurveB.StartDistance) * 0.5f;
 
@@ -756,8 +858,8 @@ float USplineCorrectionHelper::ComputeCurvature(const FVector& Prev, const FVect
 	//TODO: make a function to take CurveCompute Condition
 
 	
-	const FVector ForwardDirection = ProjectToGroundPlane(Curr - Prev).GetSafeNormal();
-	const FVector BackwardDirection = ProjectToGroundPlane(Next - Curr).GetSafeNormal();
+	const FVector ForwardDirection = (Curr - Prev).GetSafeNormal();
+	const FVector BackwardDirection = (Next - Curr).GetSafeNormal();
 
 	// Angle between directions
 	float Dot = FMath::Clamp(FVector::DotProduct(ForwardDirection, BackwardDirection), -1.f, 1.f);
@@ -777,7 +879,7 @@ void USplineCorrectionHelper::ComputeCurvePointDirectionsAndCurvature_Internal(c
 	// what this project need is 2D curve peek
 	//TEMP
 	//TODO: make a function to take CurveCompute Condition
-	OutForward = ProjectToGroundPlane(Next - Curr).GetSafeNormal();// updated one
+	OutForward = (Next - Curr).GetSafeNormal();// updated one
 	
 	// Up direction (you can choose world up or spline up)
 	OutUp = FVector::UpVector;
@@ -900,63 +1002,5 @@ FVector USplineCorrectionHelper::ComputeTangentAtIndex(const TArray<FVector>& Lo
 	return (Locations[NextIdx] - Locations[PrevIdx]).GetSafeNormal();
 }
 
-bool USplineCorrectionHelper::FlattenCurvePointsToTheDirection(const TArray<FCurvePointData>& SplineCurvePoints,
-	bool IsClosed, FVector InProjectionNormal, TArray<float>& OutCurvatureValues)
-{
-	//Reset
-	OutCurvatureValues.Reset();
 
-	const int32 SplineCurveCount=SplineCurvePoints.Num();
-	if (SplineCurveCount<3)
-	{
-		UE_LOG(SplineCorrectionHelper, Error,
-			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Not Enought Curvepoints [%d]<3"),
-			SplineCurveCount);
-		return false;
-	}
 
-	const FVector ProjectionNormal=InProjectionNormal.GetSafeNormal();
-	if (ProjectionNormal.IsNearlyZero())
-	{
-		UE_LOG(SplineCorrectionHelper, Error,
-			TEXT("USplineCorrectionHelper::FlattenCurvePointsToTheDirection >> Invalid ProjectionNormal"));
-		return false;
-	}
-
-	TArray<FVector> ProjectedPoints;//Catcher
-	ProjectedPoints.SetNum(SplineCurveCount);
-	
-	for (int32 i=0; i<SplineCurveCount; ++i)// get projected point locations
-	{
-		const FVector& Point=SplineCurvePoints[i].Location;
-		ProjectedPoints[i]= Point-FVector::DotProduct(Point, ProjectionNormal)*ProjectionNormal;
-	}
-
-	OutCurvatureValues.SetNum(SplineCurveCount);
-
-	for (int32 i=0; i<SplineCurveCount; ++i)
-	{
-		int32 PreviousIndex, NextIndex;
-
-		if (!GetNeighborIndices(i,SplineCurveCount,IsClosed, PreviousIndex, NextIndex ))
-		{
-			OutCurvatureValues[i] = 0.f;
-			continue;
-		}
-
-		const FVector& Prev=ProjectedPoints[PreviousIndex];
-		const FVector& Current=ProjectedPoints[i];
-		const FVector& Next= ProjectedPoints[NextIndex];
-
-		const FVector DirectionA=(Current-Prev).GetSafeNormal();
-		const FVector DirectionB=(Next-Current).GetSafeNormal();
-
-		const float DotValue = FVector::DotProduct(DirectionA, DirectionB);
-		//angle based curvature value
-		const float AngleValue=FMath::Acos(FMath::Clamp(DotValue, -1.f, 1.f));
-
-		OutCurvatureValues[i]=AngleValue;// return angle in radians
-	}
-
-	return true;
-}

@@ -95,6 +95,15 @@ public:
 		bool bIsClosed,
 		TArray<FCurvePeak>& OutPeaks);
 
+	// this will be used moslty. for road curve, the normal param will be z direction
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")//peak point detection
+	static bool DetectCurvePeaks_BasedOnNormal(
+		const TArray<FCurvePointData>& CurvePoints,
+		const FVector& ProjectionNormal,
+		float MinCurvatureThreshold, // minimum curvature to consider as a peak
+		bool bIsClosed,
+		TArray<FCurvePeak>& OutPeaks);
+
 
 	// the segment will be divided based on the peak point of the curve
 	UFUNCTION(BlueprintCallable, Category = "Spline|Analysis")
@@ -225,12 +234,21 @@ private:
 	// project and flatten the curve for
 	// after that use them for the peak
 
-	static bool FlattenCurvePointsToTheDirection(
+	static bool FlattenCurvePointsByProjectionNormal(// internal function for outputting flattend cuve locations
 		const TArray<FCurvePointData>& SplineCurvePoints,
 		bool IsClosed,
 		FVector ProjectionNormal,
 		//out
-		TArray<float>& OutCurvatureValues);
+		TArray<FVector>& OutFlattenedLocations);
+
+
+	static bool DetectCurvePeaks_Internal(
+		const TArray<FCurvePointData>& CurvePoints,
+		const TArray<FVector>& AnalysisPoints,
+		float MinDeviationThreshold,
+		bool bIsClosed,
+		TArray<FCurvePeak>& OutPeaks);
+	
 
 
 #pragma endregion
