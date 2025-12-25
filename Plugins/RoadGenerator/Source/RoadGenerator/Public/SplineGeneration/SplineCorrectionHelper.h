@@ -99,7 +99,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")//peak point detection
 	static bool DetectCurvePeaks_BasedOnNormal(
 		const TArray<FCurvePointData>& CurvePoints,
-		const FVector& ProjectionNormal,
+		FVector ProjectionNormal,
 		float MinCurvatureThreshold, // minimum curvature to consider as a peak
 		bool bIsClosed,
 		TArray<FCurvePeak>& OutPeaks);
@@ -170,8 +170,6 @@ public:
 		FVector& OutPeakPoint,
 		float& OutDeviation);
 
-
-	
 
 
 private:

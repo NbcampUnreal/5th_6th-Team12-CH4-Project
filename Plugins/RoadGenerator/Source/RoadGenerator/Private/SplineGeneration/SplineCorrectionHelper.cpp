@@ -304,7 +304,7 @@ bool USplineCorrectionHelper::DetectCurvePeaks(const TArray<FCurvePointData>& Cu
 }
 
 bool USplineCorrectionHelper::DetectCurvePeaks_BasedOnNormal(const TArray<FCurvePointData>& CurvePoints,
-	const FVector& ProjectionNormal, float MinCurvatureThreshold, bool bIsClosed, TArray<FCurvePeak>& OutPeaks)
+	FVector ProjectionNormal, float MinCurvatureThreshold, bool bIsClosed, TArray<FCurvePeak>& OutPeaks)
 {
 	TArray<FVector> FlattenedPoints;//catcher
 	if (!FlattenCurvePointsByProjectionNormal(CurvePoints,bIsClosed,ProjectionNormal,FlattenedPoints))
@@ -338,6 +338,10 @@ bool USplineCorrectionHelper::DetectCurvePeaks_Internal(const TArray<FCurvePoint
 		return false;
 	}
 
+	// Compute Deviation for all points
+	TArray<float> Deviations;
+	Deviations.SetNumZeroed(CurvePointCount);
+
 	for (int32 i = 0; i < CurvePointCount; ++i)
 	{
 		int32 PrevIdx, NextIdx;
@@ -346,30 +350,48 @@ bool USplineCorrectionHelper::DetectCurvePeaks_Internal(const TArray<FCurvePoint
 			continue;
 		}
 
+		FVector DummyPeak;
+		float Deviation = 0.f;
+
 		TArray<FVector> Segment;
 		Segment.Reserve(3);
 		Segment.Add(AnalysisPoints[PrevIdx]);
 		Segment.Add(AnalysisPoints[i]);
 		Segment.Add(AnalysisPoints[NextIdx]);
 
-		FVector PeakPoint;
-		float Deviation = 0.f;
+		if (GetPeakPointFromSplineCurveSegment(Segment, DummyPeak, Deviation))
+		{
+			Deviations[i] = Deviation;
+		}
+	}
 
-		if (!GetPeakPointFromSplineCurveSegment(Segment,PeakPoint,Deviation))
+	//Detect Local Max
+	for (int32 i = 0; i < CurvePointCount; ++i)
+	{
+		float Curr = Deviations[i];
+		if (Curr < MinDeviationThreshold)
 		{
 			continue;
 		}
 
-		if (Deviation < MinDeviationThreshold)
+		int32 PrevIdx, NextIdx;
+		if (!GetNeighborIndices(i, CurvePointCount, bIsClosed, PrevIdx, NextIdx))
 		{
 			continue;
 		}
 
-		FCurvePeak Peak;
-		Peak.Point = CurvePoints[i];
-		Peak.Curvature = Deviation; // semantic: severity
+		float Prev = Deviations[PrevIdx];
+		float Next = Deviations[NextIdx];
 
-		OutPeaks.Add(Peak);
+		// Local maximum condition
+		if (Curr >= Prev && Curr > Next)
+		{
+			FCurvePeak Peak;
+			Peak.Point = CurvePoints[i];
+			Peak.Curvature = Curr;
+
+			OutPeaks.Add(Peak);
+		}
 	}
 
 	return OutPeaks.Num() > 0;
