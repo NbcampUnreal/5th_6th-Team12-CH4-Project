@@ -16,6 +16,8 @@ class USoundBase;
 class UAudioComponent;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class UV12_HealthComponent;
+class USoundAttenuation;
 struct FInputActionValue;
 
 /**
@@ -47,7 +49,11 @@ class AV12_the_gamePawn : public AWheeledVehiclePawn
 	UCameraComponent* BackCamera;
 
 	USkeletalMeshComponent* VehicleMesh;
+
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UV12_HealthComponent* HealthComponent;
+
 	/** Cast pointer to the Chaos Vehicle movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UChaosWheeledVehicleMovementComponent> ChaosVehicleMovement;
@@ -61,6 +67,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Audio")
 	USoundBase* FrontImpactSound;
+
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	USoundAttenuation* ImpactAttenuation;
 
 	//effect
 	UPROPERTY(VisibleAnywhere, Category = "Effect")
@@ -276,13 +285,15 @@ public:
 	UFUNCTION()
 	void OnRep_MissileDefense();
 
-
 	void SetMissileDefense(bool bEnable);
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeTimeProps) const override;
 
 	FTimerHandle MissileDefenseTimer;
 
+	//damage 처리 함수
+	UFUNCTION(Server, Reliable)
+	void Server_RequestDamage(float Damage);
 #pragma endregion
 
 protected:
@@ -295,6 +306,15 @@ protected:
 		const FHitResult& Hit
 	);
 	void StopSideScrape();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayFrontImpact(FVector ImpactPoint);
+
+	UPROPERTY()
+	float LastFrontImpactTime = -100.f;
+
+	UPROPERTY(EditDefaultsOnly)
+	float FrontImpactCooldown = 0.3f;
 
 public:
 	/** Handle steering input by input actions or mobile interface */
