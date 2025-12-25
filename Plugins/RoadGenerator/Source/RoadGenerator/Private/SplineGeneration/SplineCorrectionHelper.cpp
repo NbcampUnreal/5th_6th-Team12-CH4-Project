@@ -396,8 +396,10 @@ bool USplineCorrectionHelper::DetectCurvePeaks_Internal(const TArray<FCurvePoint
 
 	return OutPeaks.Num() > 0;
 }
+
+
 bool USplineCorrectionHelper::FlattenCurvePointsByProjectionNormal(const TArray<FCurvePointData>& SplineCurvePoints,
-	bool IsClosed, FVector InProjectionNormal, TArray<FVector>& OutFlattenedLocations)
+                                                                   bool IsClosed, FVector InProjectionNormal, TArray<FVector>& OutFlattenedLocations)
 {
 	//Reset
 	OutFlattenedLocations.Reset();
@@ -661,6 +663,122 @@ bool USplineCorrectionHelper::DetectCurveSegmentsFromPeaks(const USplineComponen
 	UE_LOG(SplineCorrectionHelper, Log,
 		TEXT("DetectCurveSegmentsFromPeaks >> Generated %d segments"),
 		OutSegments.Num());
+
+	return true;
+}
+
+bool USplineCorrectionHelper::MergeShortStraightSegments(float MinDistance, bool bIsClosed, TArray<FCurveSegment>& Segments)
+{
+	if (MinDistance<=KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+		  TEXT("USplineCorrectionHelper::MergeShortStraightSegments >> "
+		 "MinDistance must be > bigger than KINDA_SMALL_NUMBER. Current InDistance:[%f]"),
+		  MinDistance);
+		return false;
+	}
+
+	const int32 NumSegments = Segments.Num();
+	if (NumSegments < 2)
+	{
+		UE_LOG(SplineCorrectionHelper, Warning,
+		  TEXT("USplineCorrectionHelper::MergeShortStraightSegments >> "
+		  	"There is nothing to merge. Total Segment Count: [%d]"),
+		  	NumSegments);
+		return true;
+	}
+
+	//Required Lamdas
+	auto GetSegmentLength = [](const FCurveSegment& Segment)
+	{
+		return Segment.EndPoint.DistanceFromSlineOGPoint
+			 - Segment.StartPoint.DistanceFromSlineOGPoint;
+	};
+
+	auto GetPrevIndex = [&](int32 Index)
+	{
+		return bIsClosed
+			? (Index - 1 + Segments.Num()) % Segments.Num()
+			: Index - 1;
+	};
+
+	auto GetNextIndex = [&](int32 Index)
+	{
+		return bIsClosed
+			? (Index + 1) % Segments.Num()
+			: Index + 1;
+	};
+
+	int32 i = 0;
+	while (i < Segments.Num())
+	{
+		FCurveSegment& Current = Segments[i];
+
+		// Only short straight segments are merge candidates
+		if (Current.IsCurve || GetSegmentLength(Current) >= MinDistance)
+		{
+			++i;
+			continue;
+		}
+
+		const int32 PrevIdx = GetPrevIndex(i);
+		const int32 NextIdx = GetNextIndex(i);
+
+		const bool bHasPrev = PrevIdx >= 0 && PrevIdx < Segments.Num();
+		const bool bHasNext = NextIdx >= 0 && NextIdx < Segments.Num();
+
+
+		// Curve - Straight - Curve (preferred)
+		
+		if (bHasPrev && bHasNext &&
+			Segments[PrevIdx].IsCurve &&
+			Segments[NextIdx].IsCurve)
+		{
+			FCurveSegment& PrevCurve = Segments[PrevIdx];
+			const FCurveSegment& NextCurve = Segments[NextIdx];
+
+			PrevCurve.EndPoint = NextCurve.EndPoint;
+			PrevCurve.SegmentLength =
+				PrevCurve.EndPoint.DistanceFromSlineOGPoint -
+				PrevCurve.StartPoint.DistanceFromSlineOGPoint;
+
+			Segments.RemoveAt(i, 2);
+			i = FMath::Max(0, i - 1);
+			continue;
+		}
+		
+		// Open spline edge cases
+	
+		if (!bIsClosed)
+		{
+			// Start: Straight - Curve
+			if (!bHasPrev && bHasNext && Segments[NextIdx].IsCurve)
+			{
+				FCurveSegment& NextCurve = Segments[NextIdx];
+				NextCurve.StartPoint = Current.StartPoint;
+
+				Segments.RemoveAt(i);
+				continue;
+			}
+
+			// End: Curve - Straight
+			if (bHasPrev && !bHasNext && Segments[PrevIdx].IsCurve)
+			{
+				FCurveSegment& PrevCurve = Segments[PrevIdx];
+				PrevCurve.EndPoint = Current.EndPoint;
+
+				Segments.RemoveAt(i);
+				i = FMath::Max(0, i - 1);
+				continue;
+			}
+		}
+		
+		// Failure: topology cannot be repaired
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::MergeShortStraightSegments >> "
+			     "Failed to merge short straight segment at index [%d]."), i);
+		return false;
+	}
 
 	return true;
 }

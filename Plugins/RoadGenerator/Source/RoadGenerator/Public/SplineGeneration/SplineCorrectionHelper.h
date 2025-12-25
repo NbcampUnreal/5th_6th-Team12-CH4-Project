@@ -120,6 +120,15 @@ public:
 		TArray<FCurveSegment>& OutSegments);
 
 	
+	//Cleanup the short segment by dividing and merging to curve segments on sides
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")
+	static bool MergeShortStraightSegments(
+		float MinDistance,// the allowed distance for straight path to be, or else, divided, and merged into both curve segment on the sides
+		bool bIsClosed,
+		//out
+		TArray<FCurveSegment>& Segments);
+
+	
 	UFUNCTION(BlueprintCallable, Category = "Road|Sampling")
 	static bool SampleSplineDistances(
 		USplineComponent* Spline,
@@ -246,7 +255,8 @@ private:
 		float MinDeviationThreshold,
 		bool bIsClosed,
 		TArray<FCurvePeak>& OutPeaks);
-	
+
+
 
 
 #pragma endregion
