@@ -48,6 +48,80 @@ AV12HomingMissile::AV12HomingMissile()
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AV12HomingMissile::OnMissileOverlap);
 }
 
+void AV12HomingMissile::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	if (bExploded)
+	{
+		return;
+	}
+
+	// 타겟 유효성 검사
+	if (!IsValid(HomingTarget))
+	{
+		Destroy();
+		return;
+	}
+
+	AV12_the_gamePawn* TargetPawn = Cast<AV12_the_gamePawn>(HomingTarget);
+	if (TargetPawn && TargetPawn->bMissileDefenseActive)
+	{
+		Destroy();
+		return;
+	}
+
+	// DebugSphere
+	DrawDebugSphere(
+		GetWorld(),
+		GetActorLocation(),
+		50.f,
+		12,
+		FColor::Red,
+		false,
+		0.1f
+	);
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	if (World->LineTraceSingleByChannel(
+		Hit,
+		Start,
+		End,
+		ECC_Visibility,
+		Params))
+	{
+		float TargetZ = Hit.Location.Z + DesiredAltitude;
+		FVector CurrentLocation = GetActorLocation();
+
+		float NewZ = FMath::FInterpTo(
+			CurrentLocation.Z,
+			TargetZ,
+			DeltaTime,
+			AltitudeInterpSpeed
+		);
+		SetActorLocation(
+			FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
+			false
+		);
+	}
+
+	CheckArrival();
+}
+
 void AV12HomingMissile::BeginPlay()
 {
 	Super::BeginPlay();
@@ -84,7 +158,7 @@ void AV12HomingMissile::OnMissileOverlap(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (bExploded)
+	if (!HasAuthority() || bExploded)
 	{
 		return;
 	}
@@ -95,14 +169,17 @@ void AV12HomingMissile::OnMissileOverlap(
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
+	if (OtherActor == HomingTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
 
-	Explode();
+		Explode();
+	}
 }
 
 void AV12HomingMissile::Explode()
 {
-	if (bExploded)
+	if (!HasAuthority() || bExploded)
 	{
 		return;
 	}
@@ -158,86 +235,24 @@ void AV12HomingMissile::Explode()
 	SetLifeSpan(0.1f);
 }
 
-void AV12HomingMissile::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	// 타겟 유효성 검사
-	if (!IsValid(HomingTarget))
-	{
-		Destroy();
-		return;
-	}
-
-	AV12_the_gamePawn* TargetPawn = Cast<AV12_the_gamePawn>(HomingTarget);
-	if (TargetPawn && TargetPawn->bMissileDefenseActive)
-	{
-		Destroy();
-		return;
-	}
-
-	// DebugSphere
-	DrawDebugSphere(
-		GetWorld(),
-		GetActorLocation(),
-		50.f,
-		12,
-		FColor::Red,
-		false,
-		0.1f
-	);
-
-	if (bExploded) return;
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	FVector Start = GetActorLocation();
-	FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
-
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this);
-
-	if (World->LineTraceSingleByChannel(
-		Hit,
-		Start,
-		End,
-		ECC_Visibility,
-		Params))
-	{
-		float TargetZ = Hit.Location.Z + DesiredAltitude;
-		FVector CurrentLocation = GetActorLocation();
-
-		float NewZ = FMath::FInterpTo(
-			CurrentLocation.Z,
-			TargetZ,
-			DeltaTime,
-			AltitudeInterpSpeed
-		);
-		SetActorLocation(
-			FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
-			false
-		);
-	}
-
-	CheckArrival();
-}
-
 // 목표물 도착 판정 함수
 void AV12HomingMissile::CheckArrival()
 {
-	if (bExploded || !IsValid(HomingTarget)) return;
+	if (!HasAuthority())
+	{
+		return;
+	}
 
-	float Distance =
+	if (bExploded || !IsValid(HomingTarget))
+	{
+		return;
+	}
+
+	const float Distance =
 		FVector::Dist(GetActorLocation(), HomingTarget->GetActorLocation());
 
 	if (Distance <= ArrivalRadius)
 	{
-		ProjectileMovement->bIsHomingProjectile = false;
-		ProjectileMovement->Velocity =
-			(GetActorForwardVector() * ProjectileMovement->MaxSpeed);
-
 		UE_LOG(LogTemp, Warning, TEXT("Arrival Explode"));
 
 		Explode();
