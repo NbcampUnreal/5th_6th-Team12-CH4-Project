@@ -289,7 +289,7 @@ void UV12InventoryComponent::Server_UseItem_Implementation(int32 SlotIndex)
 			V12PC->Server_ScanTargets();
 
 			// 발사하지 않고 락온 모드만 진입
-			V12PC->EnterLockOnMode();
+			V12PC->Server_EnterLockOnMode();
 		}
 	}
 	else if (ItemIDToUse == "MD")

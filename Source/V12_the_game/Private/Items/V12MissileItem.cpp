@@ -58,14 +58,6 @@ void AV12MissileItem::UseItem(AActor* OwnerActor)
 		Params
 	);
 
-	//APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
-	//if (!PC) return;
-
-	//AV12_the_gamePlayerController* V12PC =
-	//	Cast<AV12_the_gamePlayerController>(PC);
-
-	//if (!V12PC) return;
-
 	if (Missile)
 	{
 		// 락온 타겟 전달

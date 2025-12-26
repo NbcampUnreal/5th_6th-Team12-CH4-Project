@@ -132,6 +132,13 @@ public:
 	UFUNCTION()
 	void OnRep_LockedTarget();
 
+	UFUNCTION()
+	void OnRep_LockOnMode();
+
+	// 락온모드 연속 진입 방지용 함수
+	UFUNCTION(BlueprintPure)
+	bool IsLockOnMode() const;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;
 
@@ -140,15 +147,13 @@ public:
 	AActor* LockedTarget = nullptr;
 
 	UPROPERTY()
+	AActor* CachedLockOnTarget;
+
+	UPROPERTY()
 	TSubclassOf<AActor> PendingMissileItemClass;
 
-	// 락온모드 연속 진입 방지용 함수
-	UFUNCTION(BlueprintPure)
-	bool IsLockOnMode() const;
-	//bool IsLockOnMode() const
-	//{
-	//	return bIsLockOnMode; 
-	//}
+	UPROPERTY(ReplicatedUsing = OnRep_LockOnMode, BlueprintReadOnly)
+	bool bIsLockOnMode = false;
 
 protected:
 	// 아이템창 UI 띄우기
@@ -180,8 +185,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	UPrimitiveComponent* RootPrimitive;
 
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	bool bIsLockOnMode= false;
+
 
 	UPROPERTY(EditDefaultsOnly)
 	float LockOnDotThreshold = 0.8f;

@@ -13,6 +13,12 @@ AV12HomingMissile::AV12HomingMissile()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// Multiplayer Replication
+	bReplicates = true;
+	SetReplicateMovement(true);
+	SetNetUpdateFrequency(66.f);
+	SetMinNetUpdateFrequency(33.f);
+
 	// Collision
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
 	Collision->InitSphereRadius(80.f);
@@ -36,6 +42,8 @@ AV12HomingMissile::AV12HomingMissile()
 	ProjectileMovement->HomingAccelerationMagnitude = 10000.f;
 	ProjectileMovement->SetUpdatedComponent(Collision);
 
+	ProjectileMovement->SetIsReplicated(true);
+
 	// Overlap Event
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AV12HomingMissile::OnMissileOverlap);
 }
@@ -55,14 +63,17 @@ void AV12HomingMissile::BeginPlay()
 // 코드 재확인 필요
 void AV12HomingMissile::SetHomingTarget(AActor* NewTarget)
 {
-	HomingTarget = NewTarget;
-
-	if (!ProjectileMovement || !NewTarget)
+	if (!HasAuthority())
 	{
 		return;
 	}
 
-	ProjectileMovement->HomingTargetComponent = NewTarget->GetRootComponent();
+	HomingTarget = NewTarget;
+
+	if (ProjectileMovement && NewTarget)
+	{
+		ProjectileMovement->HomingTargetComponent = NewTarget->GetRootComponent();
+	}
 }
 
 void AV12HomingMissile::OnMissileOverlap(
@@ -231,4 +242,12 @@ void AV12HomingMissile::CheckArrival()
 
 		Explode();
 	}
+}
+
+void AV12HomingMissile::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AV12HomingMissile, HomingTarget);
 }

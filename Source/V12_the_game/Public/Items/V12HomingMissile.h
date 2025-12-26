@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "V12HomingMissile.generated.h"
 
 class USphereComponent;
@@ -43,6 +44,9 @@ public:
 	// Explode
 	void Explode();
 
+	void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 protected:
 
 	UPROPERTY(VisibleAnywhere)
@@ -51,7 +55,7 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	UProjectileMovementComponent* ProjectileMovement;
 
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	AActor* HomingTarget;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
