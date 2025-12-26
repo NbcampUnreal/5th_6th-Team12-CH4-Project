@@ -3,6 +3,7 @@
 #include "V12_the_gamePawn.h"
 #include "V12_the_gameWheelFront.h"
 #include "V12_the_gameWheelRear.h"
+#include "SportsCar/V12_HealthComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -20,6 +21,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
+#include "Sound/SoundAttenuation.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -76,7 +78,12 @@ AV12_the_gamePawn::AV12_the_gamePawn()
 	SpeedEffect->SetupAttachment(BackCamera);
 	SpeedEffect->SetAutoActivate(false);
 
+	//health component
+	HealthComponent = CreateDefaultSubobject<UV12_HealthComponent>(TEXT("HealthComp"));
+
 	bReplicates = true;
+
+	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 }
 
 void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -487,10 +494,22 @@ void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 #pragma endregion
 
+void AV12_the_gamePawn::Server_RequestDamage_Implementation(float Damage)
+{
+	if (!HealthComponent) return;
+
+	HealthComponent->ApplyDamage(Damage);
+}
+
 void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	if (!OtherActor || OtherActor == this)
 		return;
+
+	if (HitComponent != GetMesh())
+		return;
+
+	if (!HasAuthority()) return;
 
 	const FVector Forward = GetActorForwardVector();
 	const FVector Right = GetActorRightVector();
@@ -511,7 +530,34 @@ void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* 
 
 	if (ImpactPower >= StrongImpactThreshold)
 	{
-		if (SideScrapeAudio->IsPlaying())
+		const float Now = GetWorld()->GetTimeSeconds();
+		
+		if (Now - LastFrontImpactTime < FrontImpactCooldown)
+			return;
+
+		LastFrontImpactTime = Now;
+
+		if (AV12_the_gamePawn* OtherPawn = Cast<AV12_the_gamePawn>(OtherActor))
+		{
+			if (GetUniqueID() < OtherPawn->GetUniqueID())
+			{
+				Multicast_PlayFrontImpact(Hit.ImpactPoint);
+			}
+		}
+		else
+		{
+			Multicast_PlayFrontImpact(Hit.ImpactPoint);
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[FRONT IMPACT SERVER] %s | Other=%s"),
+			*GetName(),
+			*OtherActor->GetName()
+		);
+
+		return;
+		
+		/*if (SideScrapeAudio->IsPlaying())
 		{
 			SideScrapeAudio->Stop();
 		}
@@ -528,9 +574,7 @@ void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* 
 				FrontImpactSound,
 				Hit.ImpactPoint
 			);
-		}
-
-		return;
+		}*/
 	}
 
 	const float SpeedKmh = GetSpeedKmh();
@@ -599,6 +643,45 @@ void AV12_the_gamePawn::StopSideScrape()
 	}
 }
 
+void AV12_the_gamePawn::Multicast_PlayFrontImpact_Implementation(FVector ImpactPoint)
+{
+	if (HasAuthority())
+	{
+		return;
+	}
+	
+	UE_LOG(LogTemp, Warning,
+		TEXT("[FRONT IMPACT MULTI] %s | NetMode=%d"),
+		*GetName(),
+		(int32)GetNetMode()
+	);
+
+	if (SideScrapeAudio->IsPlaying())
+	{
+		SideScrapeAudio->Stop();
+	}
+
+	if (SideScrapeEffect->IsActive())
+	{
+		SideScrapeEffect->Deactivate();
+	}
+
+	if (IsValid(FrontImpactSound))
+	{
+		UGameplayStatics::PlaySoundAtLocation(
+			GetWorld(),
+			FrontImpactSound,
+			ImpactPoint,
+			1.f,
+			1.f,
+			0.f,
+			ImpactAttenuation
+		);
+	}
+}
+
+
+
 void AV12_the_gamePawn::DoSteering(float SteeringValue)
 {
 	// add the input
@@ -626,13 +709,19 @@ void AV12_the_gamePawn::DoBrake(float BrakeValue)
 void AV12_the_gamePawn::DoBrakeStart()
 {
 	// call the Blueprint hook for the brake lights
-	BrakeLights(true);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(true);
+	}
 }
 
 void AV12_the_gamePawn::DoBrakeStop()
 {
 	// call the Blueprint hook for the brake lights
-	BrakeLights(false);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(false);
+	}
 
 	// reset brake input to zero
 	ChaosVehicleMovement->SetBrakeInput(0.0f);
@@ -644,7 +733,10 @@ void AV12_the_gamePawn::DoHandbrakeStart()
 	ChaosVehicleMovement->SetHandbrakeInput(true);
 
 	// call the Blueprint hook for the break lights
-	BrakeLights(true);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(true);
+	}
 }
 
 void AV12_the_gamePawn::DoHandbrakeStop()
@@ -653,7 +745,10 @@ void AV12_the_gamePawn::DoHandbrakeStop()
 	ChaosVehicleMovement->SetHandbrakeInput(false);
 
 	// call the Blueprint hook for the break lights
-	BrakeLights(false);
+	if (IsLocallyControlled())
+	{
+		Server_SetBrake(false);
+	}
 }
 
 void AV12_the_gamePawn::DoLookAround(float YawDelta)
@@ -686,6 +781,16 @@ void AV12_the_gamePawn::DoResetVehicle()
 
 	GetMesh()->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
+}
+
+void AV12_the_gamePawn::OnRep_Brake()
+{
+	BrakeLights(bBrakeOn);
+}
+
+void AV12_the_gamePawn::Server_SetBrake_Implementation(bool bNewBrake)
+{
+	bBrakeOn = bNewBrake;
 }
 
 void AV12_the_gamePawn::FlippedCheck()
