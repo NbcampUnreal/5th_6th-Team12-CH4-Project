@@ -266,6 +266,12 @@ void UV12InventoryComponent::Server_UseItem_Implementation(int32 SlotIndex)
 
 		if (AV12_the_gamePlayerController* V12PC = Cast<AV12_the_gamePlayerController>(PC))
 		{
+
+			if (!V12PC)
+			{
+				return;
+			}
+
 			if (V12PC->IsLockOnMode())
 			{
 				UE_LOG(LogTemp, Log, TEXT("Already in LockOnMode - Skip"));
@@ -280,6 +286,7 @@ void UV12InventoryComponent::Server_UseItem_Implementation(int32 SlotIndex)
 
 			// 미사일아이템 클래스 전달
 			V12PC->PendingMissileItemClass = ItemData->ItemClass;
+			V12PC->Server_ScanTargets();
 
 			// 발사하지 않고 락온 모드만 진입
 			V12PC->EnterLockOnMode();

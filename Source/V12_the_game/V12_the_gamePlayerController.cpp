@@ -3,6 +3,7 @@
 
 #include "V12_the_gamePlayerController.h"
 #include "EngineUtils.h"
+#include "Net/UnrealNetwork.h"
 #include "V12_the_gamePawn.h"
 #include "V12_the_gameUI.h"
 #include "EnhancedInputSubsystems.h"
@@ -23,6 +24,7 @@
 AV12_the_gamePlayerController::AV12_the_gamePlayerController()
 {
 	InventoryComponent = CreateDefaultSubobject<UV12InventoryComponent>(TEXT("InventoryComponent"));
+	bReplicates = true;
 }
 
 void AV12_the_gamePlayerController::BeginPlay()
@@ -148,21 +150,6 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
 		}
 
-		// LockOn Wiget Position Update
-		//if (bIsLockOnMode && LockedTarget && LockOnWidget)
-		//{
-		//	// LockOn Marker Posistion
-		//	FVector2D ScreenPos;
-		//	ProjectWorldLocationToScreen(
-		//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
-		//		ScreenPos, true
-		//	);
-
-		//	LockOnMarker->UpdateScreenPosition(ScreenPos);
-		//}
-
-		// LockOn Distance Cancel
-
 		// 락온 중이 아니니 아무 것도 안한다
 		if (LockedTarget)
 		{
@@ -220,6 +207,16 @@ void AV12_the_gamePlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 
 void AV12_the_gamePlayerController::ScanTargets()
 {
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	Server_ScanTargets();
+}
+
+void AV12_the_gamePlayerController::Server_ScanTargets_Implementation()
+{
 	APawn* ControlledPawn = GetPawn();
 	if (!ControlledPawn) return;
 
@@ -247,6 +244,16 @@ void AV12_the_gamePlayerController::ScanTargets()
 }
 
 void AV12_the_gamePlayerController::CycleTarget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	Server_CycleTarget();
+}
+
+void AV12_the_gamePlayerController::Server_CycleTarget_Implementation()
 {
 	ScanTargets();
 
@@ -286,9 +293,13 @@ void AV12_the_gamePlayerController::ServerSetLockedTarget_Implementation(AActor*
 
 void AV12_the_gamePlayerController::EnterLockOnMode()
 {
-	bIsLockOnMode = true;
+	if (!IsLocalController())
+	{
+		return;
+	}
 
-	ScanTargets();
+	Server_EnterLockOnMode();
+
 	CycleTarget();
 
 	if (LockOnWidget)
@@ -297,24 +308,37 @@ void AV12_the_gamePlayerController::EnterLockOnMode()
 	}
 
 	// LockOn Marker Create
-	LockOnMarker = CreateWidget<UV12LockOnMarker>(this, LockOnMarkerClass);
-	if (LockOnMarker)
+	if (!LockOnMarker)
 	{
-		LockOnMarker->AddToViewport(40);
-		LockOnMarker->SetMarkerVisible(true);
+		UE_LOG(LogV12_the_game, Error, TEXT("Show LockOn Marker."));
+		LockOnMarker = CreateWidget<UV12LockOnMarker>(this, LockOnMarkerClass);
+		if (LockOnMarker)
+		{
+			LockOnMarker->AddToViewport(40);
+			LockOnMarker->SetMarkerVisible(true);
+		}
 	}
+}
 
-	//RootPrimitive = Cast<UPrimitiveComponent>(LockedTarget->GetRootComponent());
+void AV12_the_gamePlayerController::Server_EnterLockOnMode_Implementation()
+{
+	bIsLockOnMode = true;
+	Server_CycleTarget();
 }
 
 void AV12_the_gamePlayerController::ConfirmMissileFire()
 {
-	if (!bIsLockOnMode)
+	if (!IsLocalController())
 	{
 		return;
 	}
 
-	if (!LockedTarget)
+	Server_ConfirmMissileFire();
+}
+
+void AV12_the_gamePlayerController::Server_ConfirmMissileFire_Implementation()
+{
+	if (!bIsLockOnMode || !LockedTarget)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No Locked Target"));
 		return;
@@ -335,7 +359,6 @@ void AV12_the_gamePlayerController::ConfirmMissileFire()
 	}
 
 	MissileItem->SetTarget(LockedTarget);
-
 	MissileItem->UseItem(OwnerPawn);
 
 	CancelLockOn();
@@ -346,17 +369,22 @@ void AV12_the_gamePlayerController::ConfirmMissileFire()
 	}
 }
 
+void AV12_the_gamePlayerController::Server_CancelLockOn_Implementation()
+{
+	bIsLockOnMode = false;
+	LockedTarget = nullptr;
+	PendingMissileItemClass = nullptr;
+}
+
 // 락온 모드 해제
 void AV12_the_gamePlayerController::CancelLockOn()
 {
-	if (!bIsLockOnMode)
+	if (!IsLocalController())
 	{
 		return;
 	}
 
-	bIsLockOnMode = false;
-	LockedTarget = nullptr;
-	PendingMissileItemClass = nullptr;
+	Server_CancelLockOn();
 
 	if (LockOnWidget)
 	{
@@ -384,6 +412,44 @@ void AV12_the_gamePlayerController::ChangeLockOnTarget()
 	{
 		LockOnWidget->ShowLockOn();
 	}
+}
+
+void AV12_the_gamePlayerController::OnRep_LockedTarget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("OnRep_LockedTarget | IsLocal=%d | Target=%s"),
+		IsLocalController(),
+		*GetNameSafe(LockedTarget)
+	);
+
+	if (LockOnWidget)
+	{
+		if (LockedTarget)
+		{
+			LockOnWidget->ShowLockOn();
+		}
+		else
+		{
+			LockOnWidget->HideLockOn();
+		}
+	}
+}
+
+bool AV12_the_gamePlayerController::IsLockOnMode() const
+{
+	return bIsLockOnMode;
+}
+
+void AV12_the_gamePlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AV12_the_gamePlayerController, LockedTarget);
 }
 
 #pragma endregion
