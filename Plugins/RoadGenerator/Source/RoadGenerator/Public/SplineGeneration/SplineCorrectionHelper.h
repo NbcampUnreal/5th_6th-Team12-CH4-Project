@@ -66,17 +66,29 @@ public:
 		float DesiredSampleDistance,
 		int32 MaxSamplePoints,// to prevent too many spline point generating
 		ELocationType Type,
-		bool bIsClosed,// for tnagent calculation
+		bool bIsClosed,// for tangent calculation
 		//Outs
 		float& OutCorrectedDistance,
 		TArray<FCurvePointData>& OutSplinePoints);// not ouptus the FCurvePointData with more info
+
+	UFUNCTION(BlueprintCallable, Category = "Road|Sampling")
+	static bool ResampleSplineInRange(
+		USplineComponent* SourceSpline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType Type,
+		float StartDistance,// for ranged sampling, distance alongside the spline point 0
+		float EndDistance,// same for the end distance
+		float& OutCorrectedDistance,
+		TArray<FCurvePointData>& OutSplinePoints);
 
 	UFUNCTION(BlueprintCallable, Category = "Spline Generation")
 	static TArray<FCurvePointData> SmoothCurvePoints(
 		const TArray<FCurvePointData>& InCurvePoints,
 		float SmoothnessWeight,
 		int32 IterationCount,
-		bool bIsClosed);
+		bool bIsClosed,
+		bool bUseTaubinSmoothing);
 	
 	//--> internal helper for the Smooth curve points, but still can be usefull as exposed function
 	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")// resetter after location change
@@ -123,30 +135,22 @@ public:
 	//Cleanup the short segment by dividing and merging to curve segments on sides
 	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")
 	static bool MergeShortStraightSegments(
+		const USplineComponent* SourceSpline,
 		float MinDistance,// the allowed distance for straight path to be, or else, divided, and merged into both curve segment on the sides
 		bool bIsClosed,
 		//out
-		TArray<FCurveSegment>& Segments);
+		UPARAM(ref)TArray<FCurveSegment>& Segments);//UPARAM(ref) for bp input & output
 
-	
-	UFUNCTION(BlueprintCallable, Category = "Road|Sampling")
-	static bool SampleSplineDistances(
-		USplineComponent* Spline,
-		float SampleDistance,
-		int32 MaxSamplePoints,
-		TArray<float>& OutDistances);
-		
-	UFUNCTION(BlueprintCallable, Category = "Road|Banking")//calculate road bank degree
-	static bool ComputeRoadRoll(
-		USplineComponent* Spline,
-		const TArray<float>& Distances,
-		float BankStrength,
-		float MaxBankDegrees,
+	static bool RepairAndReattachSegments(// this is for reconstructing the continuity of the segments after the merging
+		const USplineComponent* SourceSpline,
 		bool bIsClosed,
-		//Outs
-		TArray<float>& OutRollDegrees,
-		TArray<FVector>& OutTangents,
-		TArray<FVector>& OutBankedRightVectors);
+		ELocationType Type,
+		//out
+		TArray<FCurveSegment>& OutSegments);
+
+
+		
+		
 	
 	/*UFUNCTION(BlueprintCallable, Category = "Road|Generation")
 	static void GenerateSideSplinePoints(
@@ -179,12 +183,34 @@ public:
 		FVector& OutPeakPoint,
 		float& OutDeviation);
 
-
+	// for getting neighboring index point
+	static bool GetNeighborIndices(
+		int32 Index,
+		int32 Num,
+		bool bIsClosed,
+		//out
+		int32& OutPrev,
+		int32& OutNext);
 
 private:
 
 	//Internal helper functions
 #pragma region Internal HelperFunctions
+
+	//internal resampling
+	static bool ResampleSpline_Internal(
+		USplineComponent* Spline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType Type,
+		float StartDistance,
+		float EndDistance,
+		bool bIsClosed,
+		float& OutCorrectedDistance,
+		TArray<FCurvePointData>& OutSplinePoints);
+
+
+	
 	//Direction
 	static FVector ComputeForwardDirection(const FVector& Start, const FVector& End)
 	{
@@ -206,9 +232,14 @@ private:
 		float& OutCurvature);
 
 
-	static void SmoothCurvePoints_Internal(//internal
+	static void Laplacian_SmoothCurvePoints_Internal(//internal smoothing function using Laplacian method
 		TArray<FVector>& InCurvePointLocations,
 		float SmoothnessWeight,
+		bool bIsClosed);
+
+	static void Taubin_SmoothCurvePoints_Internal(// internal smooth function using Taubin
+		TArray<FVector>& Points,
+		float Weight,
 		bool bIsClosed);
 
 
@@ -223,20 +254,13 @@ private:
 		float MidpointAlphaOffset);
 
 
-	// for getting neighboring index point
-	static bool GetNeighborIndices(
-    	int32 Index,
-    	int32 Num,
-    	bool bIsClosed,
-    	//out
-    	int32& OutPrev,
-    	int32& OutNext);
 
-	// for tangent calculation
+
+	/*// for tangent calculation -> per sampled points, not for segmented curve
 	static FVector ComputeTangentAtIndex(
 		const TArray<FVector>& Locations,
 		int32 Index,
-		bool bIsClosed);
+		bool bIsClosed);*/
 
 	// project and flatten the curve for
 	// after that use them for the peak
@@ -255,7 +279,33 @@ private:
 		float MinDeviationThreshold,
 		bool bIsClosed,
 		TArray<FCurvePeak>& OutPeaks);
+		
+	static void BuildCurveSegmentTangents(
+		const FCurvePointData& StartPoint,
+		const FCurvePointData& PeakPoint,
+		const FCurvePointData& EndPoint,
+		//out
+		FVector& OutStartTangent,
+		FVector& OutEndTangent);
 
+	//update the curve tangent after segmentation
+	static void FinalizeCurveSegment(FCurveSegment& CurveSegment);
+	
+	// Generate Alpha for peak influence 
+	static bool GeneratePeakWeightAlpha(
+		const FCurveSegment& CurveSegment,
+		const TArray<FCurvePointData>& ResampledCurve,
+		TArray<float>& OutAlpha);
+
+	// internal function for segment resampling+banking
+	bool ResampleAndBankSegment(
+		const FCurveSegment& Segment,
+		USplineComponent* SourceSpline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType CoordType,
+		float MaxRollDegrees,
+		TArray<FCurvePointData>& OutRolledPoints);
 
 
 

@@ -61,17 +61,28 @@ bool AGraphBasedRoadGenerator::GenerateSplineComponent_Uniformed(const TArray<FC
 bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& CurveSegment,
 	USplineComponent*& OutGeneratedSpline)
 {
+	//Generate new spline
+	if (OutGeneratedSpline)
+	{
+		OutGeneratedSpline->DestroyComponent();
+		OutGeneratedSpline = nullptr;
+	}
+
+	// Create spline component owned by THIS actor
+	OutGeneratedSpline = NewObject<USplineComponent>(this);
 	if (!OutGeneratedSpline)
 	{
 		UE_LOG(RoadGeneratorLog, Error,
-			TEXT("ARoadGenerator::GenerateCurveSegmentSpline >> OutGeneratedSpline is null"));
+			TEXT("GenerateCurveSegmentSpline >> Failed to create spline component"));
 		return false;
 	}
 
+	// Attach & register
+	OutGeneratedSpline->SetupAttachment(GetRootComponent());
+	OutGeneratedSpline->RegisterComponent();
+
 	// Clear existing points
 	OutGeneratedSpline->ClearSplinePoints(false);
-
-	int32 NumSamples = 10; 
 
 	if (!CurveSegment.IsCurve)// not curve, straight path
 	{
@@ -82,7 +93,6 @@ bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& C
 		OutGeneratedSpline->SetSplinePointType(0, ESplinePointType::Linear);
 		OutGeneratedSpline->SetSplinePointType(1, ESplinePointType::Linear);
 
-		OutGeneratedSpline->UpdateSpline();
 	}
 	else // curve case
 	{
@@ -114,10 +124,9 @@ bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& C
 			2,
 			CurveSegment.EndTangent,
 			ESplineCoordinateSpace::Local);
-
-		OutGeneratedSpline->UpdateSpline();
 	}
 
 	// all done
+	OutGeneratedSpline->UpdateSpline();
 	return true;
 }
