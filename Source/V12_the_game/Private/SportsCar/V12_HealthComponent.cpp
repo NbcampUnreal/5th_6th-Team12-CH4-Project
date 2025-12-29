@@ -63,7 +63,16 @@ void UV12_HealthComponent::ApplyDamage(float Damage)
 
 	const float OldHealth = CurrentHealth;
 
-	if (Damage <= 0.f || CurrentHealth <= 0.f) return;
+	if (Damage <= 0.f) 
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Health][ApplyDamage] Damage <= 0"));
+		return;
+	}
+	else if (CurrentHealth <= 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Health][ApplyDamage] CurrentHealth <= 0"));
+		return;
+	}
 
 	CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.f, MaxHealth);
 
