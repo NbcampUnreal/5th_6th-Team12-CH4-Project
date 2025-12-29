@@ -56,7 +56,7 @@ public:
 		TArray<float>& OutDistances);
 
 	UFUNCTION(BlueprintCallable, Category = "Road|Banking")//calculate road bank degree
-	bool ComputeSmoothBankedRoll(
+	static bool ComputeSmoothBankedRoll(
 		const TArray<float>& SampledDistances,
 		const TArray<FCurvePeak>& Peaks,
 		float ComfortCurvature,
