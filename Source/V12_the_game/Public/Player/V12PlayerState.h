@@ -22,6 +22,12 @@ public:
 
     void SetPlayerNameOnServer(const FString& NewName);
 
+    UPROPERTY(ReplicatedUsing = OnRep_VehicleColor)
+    FLinearColor VehicleColor;
+
+    UFUNCTION()
+    void OnRep_VehicleColor();
+
 protected:
     UFUNCTION()
     void OnRep_LobbyPlayerName();

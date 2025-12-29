@@ -50,7 +50,11 @@ class AV12_the_gamePawn : public AWheeledVehiclePawn
 
 	USkeletalMeshComponent* VehicleMesh;
 
+	UPROPERTY()
+	UStaticMeshComponent* VehicleBodyMesh;
+
 public:
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UV12_HealthComponent* HealthComponent;
 
@@ -221,7 +225,7 @@ public:
 	/** Update */
 	virtual void Tick(float Delta) override;
 
-	// End Actor interface
+	virtual void OnRep_PlayerState() override;
 
 protected:
 
@@ -295,6 +299,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDamage(float Damage);
 #pragma endregion
+
+	void ApplyVehicleColor(const FLinearColor& Color);
+	void TryApplyVehicleColor();
 
 protected:
 	UFUNCTION()

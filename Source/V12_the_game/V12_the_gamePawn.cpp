@@ -3,6 +3,7 @@
 #include "V12_the_gamePawn.h"
 #include "V12_the_gameWheelFront.h"
 #include "V12_the_gameWheelRear.h"
+#include "Player/V12PlayerState.h"
 #include "SportsCar/V12_HealthComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -22,6 +23,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "Sound/SoundAttenuation.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -145,8 +147,45 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//Drift
+	//몸체 색 변경을 위한 컴포넌트 변수 지정
+	TArray<UActorComponent*> Components;
+	GetComponents(UStaticMeshComponent::StaticClass(), Components);
 
+	for (UActorComponent* Comp : Components)
+	{
+		if (UStaticMeshComponent* SM = Cast<UStaticMeshComponent>(Comp))
+		{
+			if (SM->ComponentHasTag(TEXT("VehicleBody")))
+			{
+				VehicleBodyMesh = SM;
+				UE_LOG(LogTemp, Warning,
+					TEXT("VehicleBody FOUND: %s"),
+					*SM->GetName()
+				);
+				break;
+			}
+		}
+	}
+
+	ensureMsgf(VehicleBodyMesh, TEXT("VehicleBody StaticMesh NOT FOUND"));
+
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("VehicleBodyMesh NOT FOUND")
+		);
+	}
+
+	if (AV12PlayerState* PS = GetPlayerState<AV12PlayerState>())
+	{
+		ApplyVehicleColor(PS->VehicleColor);
+		UE_LOG(LogTemp, Warning,
+			TEXT("PlayerState FOUND Color=%s"),
+			*PS->VehicleColor.ToString()
+		);
+	}
+
+	//Drift
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
 	DefaultSideSlipModifier.SetNum(WheelCount);
@@ -325,6 +364,13 @@ void AV12_the_gamePawn::Tick(float Delta)
 	}
 
 	
+}
+
+void AV12_the_gamePawn::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	TryApplyVehicleColor();
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
@@ -506,6 +552,69 @@ void AV12_the_gamePawn::Server_RequestDamage_Implementation(float Damage)
 	if (!HealthComponent) return;
 
 	HealthComponent->ApplyDamage(Damage);
+}
+
+void AV12_the_gamePawn::ApplyVehicleColor(const FLinearColor& Color)
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ApplyVehicleColor] Pawn=%s | NetMode=%d | Role=%d"),
+		*GetName(),
+		(int32)GetNetMode(),
+		(int32)GetLocalRole()
+	);
+	
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("VehicleBodyMesh is NULL")
+		);
+		return;
+	}
+	const int32 PaintMaterialIndex = 1;
+
+	UMaterialInterface* BaseMaterial = VehicleBodyMesh->GetMaterial(PaintMaterialIndex);
+
+	if (!BaseMaterial) return;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Material[%d]: %s"),
+		PaintMaterialIndex,
+		*BaseMaterial->GetName()
+	);
+
+	UMaterialInstanceDynamic* MID = VehicleBodyMesh->CreateAndSetMaterialInstanceDynamicFromMaterial(PaintMaterialIndex, BaseMaterial);
+
+	if (MID)
+	{
+		MID->SetVectorParameterValue(TEXT("Paint Tint"), Color);
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Paint Tint applied successfully")
+	);
+}
+
+void AV12_the_gamePawn::TryApplyVehicleColor()
+{
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Mesh not ready"));
+		return;
+	}
+
+	AV12PlayerState* PS = GetPlayerState<AV12PlayerState>();
+	if (!PS)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerState not ready"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("TryApplyVehicleColor Color=%s"),
+		*PS->VehicleColor.ToString()
+	);
+
+	ApplyVehicleColor(PS->VehicleColor);
 }
 
 void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)

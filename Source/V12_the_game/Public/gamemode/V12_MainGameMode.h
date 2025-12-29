@@ -13,5 +13,10 @@ UCLASS()
 class V12_THE_GAME_API AV12_MainGameMode : public AGameMode
 {
 	GENERATED_BODY()
-	
+protected:
+	//로비 게임 모드로 이동 가능
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle Color")
+	TArray<FLinearColor> PresetColors;
 };
