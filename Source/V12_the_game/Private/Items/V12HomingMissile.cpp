@@ -7,6 +7,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "ChaosVehicleMovementComponent.h"
 #include "V12_the_gameSportsCar.h"
+#include "SportsCar/V12_HealthComponent.h"
 
 
 AV12HomingMissile::AV12HomingMissile()
@@ -46,6 +47,9 @@ AV12HomingMissile::AV12HomingMissile()
 
 	// Overlap Event
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AV12HomingMissile::OnMissileOverlap);
+
+	// Default Damage
+	DamageAmount = 10.f;
 }
 
 void AV12HomingMissile::Tick(float DeltaTime)
@@ -169,6 +173,7 @@ void AV12HomingMissile::OnMissileOverlap(
 		return;
 	}
 
+	
 	if (OtherActor == HomingTarget)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
@@ -198,6 +203,29 @@ void AV12HomingMissile::Explode()
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->HomingTargetComponent = nullptr;
+	}
+
+	// 데미지 처리
+	if (HomingTarget)
+	{
+		AV12_the_gamePawn* HitPawn = Cast<AV12_the_gamePawn>(HomingTarget);
+
+		// 차량 폰 클래스만 처리
+		if (HitPawn)
+		{
+			// HelthComponent 찾기
+			UV12_HealthComponent* HealthComp = HitPawn->FindComponentByClass<UV12_HealthComponent>();
+			if (!HealthComp)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Missile] HealthComponent not found on %s"), *GetNameSafe(HitPawn));
+				return;
+			}
+
+			// 데미지 Apply
+			HealthComp->ApplyDamage(DamageAmount);
+
+			UE_LOG(LogTemp, Warning, TEXT("Missile Hit : %s | Damage = %.1f"), *GetNameSafe(HitPawn), DamageAmount);
+		}
 	}
 
 	UWorld* World = GetWorld();

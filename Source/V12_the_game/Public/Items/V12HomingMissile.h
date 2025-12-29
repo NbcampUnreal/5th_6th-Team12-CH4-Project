@@ -81,4 +81,8 @@ protected:
 	float GroundTraceDistance = 2000.f;
 
 	bool bExploded = false;
+
+	// 데미지 양
+	UPROPERTY(EditAnywhere, Category = "Missile|Demage")
+	float DamageAmount;
 };
