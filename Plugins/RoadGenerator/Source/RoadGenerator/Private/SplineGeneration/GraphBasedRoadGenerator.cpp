@@ -55,6 +55,7 @@ bool AGraphBasedRoadGenerator::GenerateSplineComponent_Uniformed(const TArray<FC
 
 	OutGeneratedSpline->SetClosedLoop(bIsClosed, false);
 	OutGeneratedSpline->UpdateSpline();// now, update the spline
+	
 	return true;
 }
 
@@ -127,6 +128,7 @@ bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& C
 	}
 
 	// all done
-	OutGeneratedSpline->UpdateSpline();
+	OutGeneratedSpline->UpdateSpline();// now, update the spline
+	
 	return true;
 }

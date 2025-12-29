@@ -46,6 +46,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")// this is for reconstructing segment into a spline
 	bool GenerateCurveSegmentSpline(
 		const FCurveSegment& CurveSegments,
+		//out
 		USplineComponent*& OutGeneratedSpline);
 
 protected:

@@ -262,65 +262,92 @@ bool URoadGenerationHelper::SampleSplineDistances(USplineComponent* Spline, floa
 	return true;
 }
 
-bool URoadGenerationHelper::ComputeSmoothBankedRoll(const TArray<float>& SampledDistances,
+bool URoadGenerationHelper::ComputeSmoothWeightAlphaFromPoints(const TArray<FCurvePointData>& CurvePoints,
 	const TArray<FCurvePeak>& Peaks, float ComfortCurvature, float MaxExpectedCurvature, float MinInfluenceDistance,
 	float MaxInfluenceDistance, float IntensityScale, float EntranceRatio, float ExitRatio, float EaseExponent,
-	float MaxBankDegrees, TArray<float>& OutRollDegrees)
+	bool bIsClosed, TArray<float>& OutWeightAlpha)
 {
-	OutRollDegrees.Reset();
+    OutWeightAlpha.Reset();
 
-	if (SampledDistances.Num() == 0 || Peaks.Num() == 0)
-	{
-		UE_LOG(RoadGenerationHelper, Warning, TEXT("ComputeSmoothBankedRoll >> Invalid input."));
+    const int32 NumPoints = CurvePoints.Num();
+    if (NumPoints < 2 || Peaks.Num() == 0)
+    {
+        UE_LOG(RoadGenerationHelper, Warning,
+        	TEXT("URoadGenerationHelper::ComputeSmoothWeightAlphaFromPoints >> Invalid input."));
+        return false;
+    }
+
+    // Compute alpha (weight) per point
+    TArray<float> AlphaArray;
+    AlphaArray.SetNum(NumPoints);
+
+    for (int32 i = 0; i < NumPoints; ++i)
+    {
+        float Distance = CurvePoints[i].DistanceFromSlineOGPoint; // assumes distance stored
+        float Alpha = 0.f;
+        URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(
+            Distance, Peaks,
+            ComfortCurvature, MaxExpectedCurvature,
+            MinInfluenceDistance, MaxInfluenceDistance, IntensityScale,
+            EntranceRatio, ExitRatio, EaseExponent,
+            Alpha
+        );
+        AlphaArray[i] = Alpha;
+    }
+
+    // Apply signed curvature
+    TArray<float> SignedAlphaArray;
+    SignedAlphaArray.SetNum(NumPoints);
+
+    for (int32 i = 0; i < NumPoints; ++i)
+    {
+        int32 PrevIdx = (i == 0) ? (bIsClosed ? NumPoints - 1 : 0) : i - 1;
+        int32 NextIdx = (i == NumPoints - 1) ? (bIsClosed ? 0 : NumPoints - 1) : i + 1;
+
+        FVector PrevTangent = (CurvePoints[i].Location - CurvePoints[PrevIdx].Location).GetSafeNormal();
+        FVector NextTangent = (CurvePoints[NextIdx].Location - CurvePoints[i].Location).GetSafeNormal();
+
+        float SignedCurvature = FMath::Sign(FVector::CrossProduct(PrevTangent, NextTangent).Z);
+        SignedAlphaArray[i] = AlphaArray[i] * SignedCurvature;
+    }
+
+    // Step 3: Iterative smoothing
+    const float SmoothFactor = 0.2f;
+    const int32 Iterations = 2;
+    TArray<float> Temp = SignedAlphaArray;
+
+    for (int32 Iter = 0; Iter < Iterations; ++Iter)
+    {
+        for (int32 i = 0; i < NumPoints; ++i)
+        {
+            int32 PrevIdx = (i == 0) ? (bIsClosed ? NumPoints - 1 : 0) : i - 1;
+            int32 NextIdx = (i == NumPoints - 1) ? (bIsClosed ? 0 : NumPoints - 1) : i + 1;
+
+            Temp[i] = FMath::Lerp(Temp[i], 0.5f * (SignedAlphaArray[PrevIdx] + SignedAlphaArray[NextIdx]), SmoothFactor);
+        }
+        SignedAlphaArray = Temp;
+    }
+
+    OutWeightAlpha = SignedAlphaArray;
+    return true;
+}
+
+bool URoadGenerationHelper::ComputeRollFromWeightAlpha(const TArray<float>& WeightAlpha, float MaxBankDegrees,
+	TArray<float>& OutRollDegrees)
+{
+	const int32 NumPoints = WeightAlpha.Num();
+	if (NumPoints == 0)
 		return false;
-	}
 
-	TArray<float> AlphaArray;
-	AlphaArray.SetNum(SampledDistances.Num());
+	OutRollDegrees.SetNum(NumPoints);
 
-	// Step 1: Compute alpha per distance
-	for (int32 i = 0; i < SampledDistances.Num(); ++i)
+	for (int32 i = 0; i < NumPoints; ++i)
 	{
-		float Alpha = 0.f;
-		URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(
-			SampledDistances[i], Peaks,
-			ComfortCurvature, MaxExpectedCurvature,
-			MinInfluenceDistance, MaxInfluenceDistance, IntensityScale,
-			EntranceRatio, ExitRatio, EaseExponent,
-			Alpha
-		);
-		AlphaArray[i] = Alpha;
-	}
-
-	// Step 2: Smooth the alpha array (forward pass)
-	const float SmoothFactor = 0.2f; // tweakable: 0..1
-	float PrevValue = AlphaArray[0];
-	for (int32 i = 1; i < AlphaArray.Num(); ++i)
-	{
-		float Smoothed = FMath::Lerp(PrevValue, AlphaArray[i], SmoothFactor);
-		AlphaArray[i] = Smoothed;
-		PrevValue = Smoothed;
-	}
-
-	// Optional: backward pass for bidirectional smoothing
-	PrevValue = AlphaArray.Last();
-	for (int32 i = AlphaArray.Num() - 2; i >= 0; --i)
-	{
-		float Smoothed = FMath::Lerp(PrevValue, AlphaArray[i], SmoothFactor);
-		AlphaArray[i] = Smoothed;
-		PrevValue = Smoothed;
-	}
-
-	// Step 3: Compute final roll
-	OutRollDegrees.SetNum(AlphaArray.Num());
-	for (int32 i = 0; i < AlphaArray.Num(); ++i)
-	{
-		OutRollDegrees[i] = AlphaArray[i] * MaxBankDegrees;
+		OutRollDegrees[i] = WeightAlpha[i] * MaxBankDegrees;
 	}
 
 	return true;
 }
-
 
 /*bool URoadGenerationHelper::ComputeRoadRoll(USplineComponent* Spline, const TArray<float>& Distances,
                                             float BankStrength, float MaxBankDegrees,bool bIsClosed, TArray<float>& OutRollDegrees)
@@ -443,6 +470,27 @@ bool URoadGenerationHelper::ComputeRollFromPeaks(const TArray<float>& SampledDis
 			OutRollDegrees.Add(0.f);
 		}
 	}
+
+	return true;
+}
+
+bool URoadGenerationHelper::LiftUpCurvePoints(const TArray<float>& WeightAlpha, float LiftingHeight,
+	TArray<FCurvePointData>& OutCurvePointData)
+{
+	if (OutCurvePointData.Num() == 0 || WeightAlpha.Num() != OutCurvePointData.Num())//invalid cases
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("URoadGenerationHelper::LiftUpCurvePoints >> Invalid input: NumPoints %d, NumAlpha %d"),
+			   OutCurvePointData.Num(), WeightAlpha.Num());
+		return false;
+	}
+	
+	// Apply lifting along Z axis
+        for (int32 i = 0; i < OutCurvePointData.Num(); ++i)
+        {
+            float Alpha = FMath::Clamp(WeightAlpha[i], 0.f, 1.f);
+            OutCurvePointData[i].Location.Z += Alpha * LiftingHeight;
+        }
 
 	return true;
 }

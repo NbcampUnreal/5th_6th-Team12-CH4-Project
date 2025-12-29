@@ -55,9 +55,9 @@ public:
 		int32 MaxSamplePoints,
 		TArray<float>& OutDistances);
 
-	UFUNCTION(BlueprintCallable, Category = "Road|Banking")//calculate road bank degree
-	static bool ComputeSmoothBankedRoll(
-		const TArray<float>& SampledDistances,
+	/*UFUNCTION(BlueprintCallable, Category = "Road|Banking")//calculate road bank degree
+	static bool ComputeSmoothBankedRollFromPoints(
+		const TArray<FCurvePointData>& CurvePoints,
 		const TArray<FCurvePeak>& Peaks,
 		float ComfortCurvature,
 		float MaxExpectedCurvature,
@@ -66,10 +66,42 @@ public:
 		float IntensityScale,
 		float EntranceRatio,
 		float ExitRatio,
-    	float EaseExponent,
-    	float MaxBankDegrees,
-    	//out
-    	TArray<float>& OutRollDegrees);
+		float EaseExponent,
+		float MaxBankDegrees,
+		bool bIsClosed,
+		//out
+		TArray<float>& OutRollDegrees);*/
+	//TODO: this roll cause the road to sunk down. seperate weight output and roll appliace and use the wegith for the lifting data
+
+
+	UFUNCTION(BlueprintCallable, Category="Road|Banking")
+	static bool ComputeSmoothWeightAlphaFromPoints(
+		const TArray<FCurvePointData>& CurvePoints,
+		const TArray<FCurvePeak>& Peaks,
+		float ComfortCurvature,
+		float MaxExpectedCurvature,
+		float MinInfluenceDistance,
+		float MaxInfluenceDistance,
+		float IntensityScale,
+		float EntranceRatio,
+		float ExitRatio,
+		float EaseExponent,
+		bool bIsClosed,
+		//out
+		TArray<float>& OutWeightAlpha);
+
+	
+	UFUNCTION(BlueprintCallable, Category="Road|Banking")
+	static bool ComputeRollFromWeightAlpha(
+		const TArray<float>& WeightAlpha,
+		float MaxBankDegrees,
+		//out
+		TArray<float>& OutRollDegrees);
+
+
+
+
+	
 	
 	UFUNCTION(BlueprintCallable, Category = "Road|Banking")
 	static bool ComputeRollFromPeaks(
@@ -87,7 +119,13 @@ public:
         //out
         TArray<float>& OutRollDegrees);
            
-
+	// this is for updating the curve point data for recreating new spline based on the height update
+	UFUNCTION(BlueprintCallable, Category = "Road|Banking")
+	static bool LiftUpCurvePoints(
+		const TArray<float>& WeightAlpha,
+		float LiftingHeight,
+		//out
+		TArray<FCurvePointData>& OutCurvePointData);
 		
 
 private:
