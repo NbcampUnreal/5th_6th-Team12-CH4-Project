@@ -56,15 +56,37 @@ public:
 		TArray<float>& OutDistances);
 
 	UFUNCTION(BlueprintCallable, Category = "Road|Banking")//calculate road bank degree
-	static bool ComputeRoadRoll(
-	USplineComponent* Spline,
-		const TArray<float>& Distances,
-		float BankStrength,
-		float MaxBankDegrees,
-		bool bIsClosed,
-		//Outs
-		TArray<float>& OutRollDegrees);
+	bool ComputeSmoothBankedRoll(
+		const TArray<float>& SampledDistances,
+		const TArray<FCurvePeak>& Peaks,
+		float ComfortCurvature,
+		float MaxExpectedCurvature,
+		float MinInfluenceDistance,
+		float MaxInfluenceDistance,
+		float IntensityScale,
+		float EntranceRatio,
+		float ExitRatio,
+    	float EaseExponent,
+    	float MaxBankDegrees,
+    	//out
+    	TArray<float>& OutRollDegrees);
 	
+	UFUNCTION(BlueprintCallable, Category = "Road|Banking")
+	static bool ComputeRollFromPeaks(
+		const TArray<float>& SampledDistances,
+        const TArray<FCurvePeak>& Peaks,
+        float ComfortCurvature,
+        float MaxExpectedCurvature,
+        float MinInfluenceDistance,
+        float MaxInfluenceDistance,
+        float IntensityScale,
+        float EntranceRatio,
+        float ExitRatio,
+        float EaseExponent,
+        float MaxBankDegrees,
+        //out
+        TArray<float>& OutRollDegrees);
+           
 
 		
 

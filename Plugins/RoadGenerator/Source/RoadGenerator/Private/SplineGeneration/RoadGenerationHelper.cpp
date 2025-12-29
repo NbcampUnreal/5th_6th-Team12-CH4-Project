@@ -50,7 +50,7 @@ bool URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(float DistanceFromSpl
 			MaxExpectedCurvature,
 			Severity))
 		{
-			UE_LOG(RoadGenerationHelper, Verbose,
+			UE_LOG(RoadGenerationHelper, Log,
 				TEXT("URoadGenerationHelper::GetAlphaWeightByPeakAtDistance >> "
 				"Peak[%d]: ComputeSeverity failed (Curvature=%.4f)"),
 				PeakIndex, Curvature);
@@ -74,7 +74,7 @@ bool URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(float DistanceFromSpl
 			EntranceDistance,
 			ExitDistance))
 		{
-			UE_LOG(RoadGenerationHelper, Verbose,
+			UE_LOG(RoadGenerationHelper, Log,
 				TEXT("URoadGenerationHelper::GetAlphaWeightByPeakAtDistance >> "
 				"Peak[%d]: ComputeInfluenceDistances failed (Severity=%.3f)"),
 				PeakIndex, Severity);
@@ -90,7 +90,7 @@ bool URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(float DistanceFromSpl
 			EaseExponent,
 			Alpha))
 		{
-			UE_LOG(RoadGenerationHelper, Verbose,
+			UE_LOG(RoadGenerationHelper, Log,
 				TEXT("URoadGenerationHelper::GetAlphaWeightByPeakAtDistance >> Peak[%d]: EvaluatePeakAlpha failed"),
 				PeakIndex);
 			continue;
@@ -105,7 +105,7 @@ bool URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(float DistanceFromSpl
 
 	if (!bAnyPeakContributed)
 	{
-		UE_LOG(RoadGenerationHelper, VeryVerbose,
+		UE_LOG(RoadGenerationHelper, Log,
 			TEXT("URoadGenerationHelper::GetAlphaWeightByPeakAtDistance >> No peak influence at Distance %.3f"),
 			DistanceFromSplineOG);
 		return false;
@@ -113,7 +113,7 @@ bool URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(float DistanceFromSpl
 
 	OutWeightAlpha = FMath::Clamp(MaxAlpha, 0.f, 1.f);
 
-	UE_LOG(RoadGenerationHelper, VeryVerbose,
+	UE_LOG(RoadGenerationHelper, Log,
 		TEXT("URoadGenerationHelper::GetAlphaWeightByPeakAtDistance >> Distance %.3f -> Alpha %.3f"),
 		DistanceFromSplineOG,
 		OutWeightAlpha);
@@ -262,8 +262,68 @@ bool URoadGenerationHelper::SampleSplineDistances(USplineComponent* Spline, floa
 	return true;
 }
 
-bool URoadGenerationHelper::ComputeRoadRoll(USplineComponent* Spline, const TArray<float>& Distances,
-	float BankStrength, float MaxBankDegrees,bool bIsClosed, TArray<float>& OutRollDegrees)
+bool URoadGenerationHelper::ComputeSmoothBankedRoll(const TArray<float>& SampledDistances,
+	const TArray<FCurvePeak>& Peaks, float ComfortCurvature, float MaxExpectedCurvature, float MinInfluenceDistance,
+	float MaxInfluenceDistance, float IntensityScale, float EntranceRatio, float ExitRatio, float EaseExponent,
+	float MaxBankDegrees, TArray<float>& OutRollDegrees)
+{
+	OutRollDegrees.Reset();
+
+	if (SampledDistances.Num() == 0 || Peaks.Num() == 0)
+	{
+		UE_LOG(RoadGenerationHelper, Warning, TEXT("ComputeSmoothBankedRoll >> Invalid input."));
+		return false;
+	}
+
+	TArray<float> AlphaArray;
+	AlphaArray.SetNum(SampledDistances.Num());
+
+	// Step 1: Compute alpha per distance
+	for (int32 i = 0; i < SampledDistances.Num(); ++i)
+	{
+		float Alpha = 0.f;
+		URoadGenerationHelper::GetAlphaWeightByPeakAtDistance(
+			SampledDistances[i], Peaks,
+			ComfortCurvature, MaxExpectedCurvature,
+			MinInfluenceDistance, MaxInfluenceDistance, IntensityScale,
+			EntranceRatio, ExitRatio, EaseExponent,
+			Alpha
+		);
+		AlphaArray[i] = Alpha;
+	}
+
+	// Step 2: Smooth the alpha array (forward pass)
+	const float SmoothFactor = 0.2f; // tweakable: 0..1
+	float PrevValue = AlphaArray[0];
+	for (int32 i = 1; i < AlphaArray.Num(); ++i)
+	{
+		float Smoothed = FMath::Lerp(PrevValue, AlphaArray[i], SmoothFactor);
+		AlphaArray[i] = Smoothed;
+		PrevValue = Smoothed;
+	}
+
+	// Optional: backward pass for bidirectional smoothing
+	PrevValue = AlphaArray.Last();
+	for (int32 i = AlphaArray.Num() - 2; i >= 0; --i)
+	{
+		float Smoothed = FMath::Lerp(PrevValue, AlphaArray[i], SmoothFactor);
+		AlphaArray[i] = Smoothed;
+		PrevValue = Smoothed;
+	}
+
+	// Step 3: Compute final roll
+	OutRollDegrees.SetNum(AlphaArray.Num());
+	for (int32 i = 0; i < AlphaArray.Num(); ++i)
+	{
+		OutRollDegrees[i] = AlphaArray[i] * MaxBankDegrees;
+	}
+
+	return true;
+}
+
+
+/*bool URoadGenerationHelper::ComputeRoadRoll(USplineComponent* Spline, const TArray<float>& Distances,
+                                            float BankStrength, float MaxBankDegrees,bool bIsClosed, TArray<float>& OutRollDegrees)
 {
 	if (!Spline || Distances.Num() < 2)
 		return false;
@@ -318,6 +378,70 @@ bool URoadGenerationHelper::ComputeRoadRoll(USplineComponent* Spline, const TArr
 		const float Roll =Severity * MaxBankDegrees * FMath::Sign(SignedCurvature);
 
 		OutRollDegrees.Add(Roll);
+	}
+
+	return true;
+}*/
+
+bool URoadGenerationHelper::ComputeRollFromPeaks(const TArray<float>& SampledDistances, const TArray<FCurvePeak>& Peaks,
+	float ComfortCurvature, float MaxExpectedCurvature, float MinInfluenceDistance, float MaxInfluenceDistance,
+	float IntensityScale, float EntranceRatio, float ExitRatio, float EaseExponent, float MaxBankDegrees,
+	TArray<float>& OutRollDegrees)
+{
+	if (SampledDistances.Num() == 0 || Peaks.Num() == 0)
+		return false;
+
+	OutRollDegrees.Reset(SampledDistances.Num());
+
+	for (float Distance : SampledDistances)
+	{
+		float Alpha = 0.f;
+		if (GetAlphaWeightByPeakAtDistance(
+				Distance,
+				Peaks,
+				ComfortCurvature,
+				MaxExpectedCurvature,
+				MinInfluenceDistance,
+				MaxInfluenceDistance,
+				IntensityScale,
+				EntranceRatio,
+				ExitRatio,
+				EaseExponent,
+				Alpha))
+		{
+			// Signed roll based on curvature direction of the peak
+			// Here, take the peak with the highest influence
+			const FCurvePeak* Peak = nullptr;
+			float MaxPeakAlpha = 0.f;
+			for (const FCurvePeak& P : Peaks)
+			{
+				float PeakAlpha = 0.f;
+				GetAlphaWeightByPeakAtDistance(Distance, 
+				{P},
+				ComfortCurvature,
+				MaxExpectedCurvature,
+				MinInfluenceDistance,
+				MaxInfluenceDistance,
+				IntensityScale,
+				EntranceRatio,
+				ExitRatio,
+				EaseExponent,
+				PeakAlpha);
+				
+				if (PeakAlpha > MaxPeakAlpha)
+				{
+					MaxPeakAlpha = PeakAlpha;
+					Peak = &P;
+				}
+			}
+
+			float Roll = MaxPeakAlpha * MaxBankDegrees * FMath::Sign(Peak ? Peak->Curvature : 1.f);
+			OutRollDegrees.Add(Roll);
+		}
+		else// not found, just 0
+		{
+			OutRollDegrees.Add(0.f);
+		}
 	}
 
 	return true;

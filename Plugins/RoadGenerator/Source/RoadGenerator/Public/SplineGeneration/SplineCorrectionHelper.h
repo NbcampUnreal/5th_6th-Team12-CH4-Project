@@ -192,6 +192,13 @@ public:
 		int32& OutPrev,
 		int32& OutNext);
 
+	// Generate Alpha for peak influence
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	static bool GeneratePeakWeightAlpha(
+		const FCurveSegment& CurveSegment,
+		const TArray<FCurvePointData>& CurvePoints,
+		TArray<float>& OutAlpha);
+
 private:
 
 	//Internal helper functions
@@ -291,11 +298,7 @@ private:
 	//update the curve tangent after segmentation
 	static void FinalizeCurveSegment(FCurveSegment& CurveSegment);
 	
-	// Generate Alpha for peak influence 
-	static bool GeneratePeakWeightAlpha(
-		const FCurveSegment& CurveSegment,
-		const TArray<FCurvePointData>& ResampledCurve,
-		TArray<float>& OutAlpha);
+
 
 	// internal function for segment resampling+banking
 	bool ResampleAndBankSegment(
