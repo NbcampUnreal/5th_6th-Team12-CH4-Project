@@ -40,7 +40,7 @@ AV12HomingMissile::AV12HomingMissile()
 	ProjectileMovement->MaxSpeed = 4000.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bIsHomingProjectile = true;
-	ProjectileMovement->HomingAccelerationMagnitude = 10000.f;
+	ProjectileMovement->HomingAccelerationMagnitude = 30000.f;
 	ProjectileMovement->SetUpdatedComponent(Collision);
 
 	ProjectileMovement->SetIsReplicated(true);
@@ -56,16 +56,11 @@ void AV12HomingMissile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!HasAuthority())
+	if (!HasAuthority() || bExploded)
 	{
 		return;
 	}
 	
-	if (bExploded)
-	{
-		return;
-	}
-
 	// 타겟 유효성 검사
 	if (!IsValid(HomingTarget))
 	{
@@ -94,33 +89,37 @@ void AV12HomingMissile::Tick(float DeltaTime)
 	UWorld* World = GetWorld();
 	if (!World) return;
 
-	FVector Start = GetActorLocation();
-	FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
+	float DistanceToTarget = FVector::Dist(GetActorLocation(), HomingTarget->GetActorForwardVector());
 
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this);
-
-	if (World->LineTraceSingleByChannel(
-		Hit,
-		Start,
-		End,
-		ECC_Visibility,
-		Params))
+	if (DistanceToTarget > 1000.f)
 	{
-		float TargetZ = Hit.Location.Z + DesiredAltitude;
-		FVector CurrentLocation = GetActorLocation();
+		FVector Start = GetActorLocation();
+		FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
+		FHitResult Hit;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
 
-		float NewZ = FMath::FInterpTo(
-			CurrentLocation.Z,
-			TargetZ,
-			DeltaTime,
-			AltitudeInterpSpeed
-		);
-		SetActorLocation(
-			FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
-			false
-		);
+		if (GetWorld()->LineTraceSingleByChannel(
+			Hit,
+			Start,
+			End,
+			ECC_Visibility,
+			Params))
+		{
+			float TargetZ = Hit.Location.Z + DesiredAltitude;
+			FVector CurrentLocation = GetActorLocation();
+
+			float NewZ = FMath::FInterpTo(
+				CurrentLocation.Z,
+				TargetZ,
+				DeltaTime,
+				AltitudeInterpSpeed
+			);
+			SetActorLocation(
+				FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
+				false
+			);
+		}
 	}
 
 	CheckArrival();

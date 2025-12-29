@@ -185,13 +185,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	UPrimitiveComponent* RootPrimitive;
 
-
-
 	UPROPERTY(EditDefaultsOnly)
 	float LockOnDotThreshold = 0.8f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "LockOn")
-	float MaxLockOnDistance = 7000.f;
+	float MaxLockOnDistance = 9000.f;
 
 	// 현재 타겟 인덱스
 	int32 CurrentTargetIndex = -1;

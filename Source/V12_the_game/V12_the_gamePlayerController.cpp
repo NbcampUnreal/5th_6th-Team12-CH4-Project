@@ -363,10 +363,11 @@ void AV12_the_gamePlayerController::ChangeLockOnTarget()
 
 	CycleTarget();
 
-	// ? 겟이 바뀌었? 면 UI 갱신
+	// 타겟이 바뀌었으면 UI 갱신
 	if (LockOnWidget && LockedTarget)
 	{
 		LockOnWidget->ShowLockOn();
+		LockOnMarker->SetMarkerVisible(true);
 	}
 }
 
@@ -412,6 +413,8 @@ void AV12_the_gamePlayerController::OnRep_LockOnMode()
 		}
 	}
 
+	CycleTarget();
+
 	// LockOn Marker
 	if (bIsLockOnMode)
 	{
@@ -424,7 +427,7 @@ void AV12_the_gamePlayerController::OnRep_LockOnMode()
 			if (LockOnMarker)
 			{
 				LockOnMarker->AddToViewport(40);
-				LockOnMarker->SetMarkerVisible(true);	
+				//LockOnMarker->SetMarkerVisible(true);	
 
 				if (CachedLockOnTarget)
 				{
