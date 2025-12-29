@@ -203,13 +203,43 @@ void AV12_the_gamePawn::Tick(float Delta)
 	bool bMovingOnGround = ChaosVehicleMovement->IsMovingOnGround();
 	GetMesh()->SetAngularDamping(bMovingOnGround ? 0.0f : 3.0f);
 
+	const float SpeedKmh = GetSpeedKmh();
+
+	if (bIsDrifting)
+	{
+		float Steer = ChaosVehicleMovement->GetSteeringInput();
+		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+
+		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
+
+		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
+
+		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
+		VehicleMesh->AddForce(ForwardForce);
+
+		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
+
+		FVector Vel = GetVelocity();
+		FVector Right = GetActorRightVector();
+		float LateralSpeed = FVector::DotProduct(Vel, Right);
+
+		float CounterSteer = -LateralSpeed * CounterSteerStrength;
+
+		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
+
+		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
+	}
+
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
 	// realign the camera yaw to face front
 	float CameraYaw = BackSpringArm->GetRelativeRotation().Yaw;
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
-
-	const float SpeedKmh = GetSpeedKmh();
 
 	float TargetDistance = DefaultCameraDistance;
 	float TargetFOV = DefaultFOV;
@@ -294,30 +324,7 @@ void AV12_the_gamePawn::Tick(float Delta)
 		);
 	}
 
-	if (bIsDrifting)
-	{
-		float Steer = ChaosVehicleMovement->GetSteeringInput();
-		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
-
-		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
-
-		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
-
-		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
-		VehicleMesh->AddForce(ForwardForce);
-		
-		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
-
-		FVector Vel = GetVelocity();
-		FVector Right = GetActorRightVector();
-		float LateralSpeed = FVector::DotProduct(Vel, Right);
-
-		float CounterSteer = -LateralSpeed * CounterSteerStrength;
-
-		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
-
-		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
-	}
+	
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
