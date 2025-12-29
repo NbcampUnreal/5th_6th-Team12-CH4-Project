@@ -7,11 +7,18 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "ChaosVehicleMovementComponent.h"
 #include "V12_the_gameSportsCar.h"
+#include "SportsCar/V12_HealthComponent.h"
 
 
 AV12HomingMissile::AV12HomingMissile()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Multiplayer Replication
+	bReplicates = true;
+	SetReplicateMovement(true);
+	SetNetUpdateFrequency(66.f);
+	SetMinNetUpdateFrequency(33.f);
 
 	// Collision
 	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
@@ -33,11 +40,89 @@ AV12HomingMissile::AV12HomingMissile()
 	ProjectileMovement->MaxSpeed = 4000.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bIsHomingProjectile = true;
-	ProjectileMovement->HomingAccelerationMagnitude = 10000.f;
+	ProjectileMovement->HomingAccelerationMagnitude = 30000.f;
 	ProjectileMovement->SetUpdatedComponent(Collision);
+
+	ProjectileMovement->SetIsReplicated(true);
 
 	// Overlap Event
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &AV12HomingMissile::OnMissileOverlap);
+
+	// Default Damage
+	DamageAmount = 10.f;
+}
+
+void AV12HomingMissile::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!HasAuthority() || bExploded)
+	{
+		return;
+	}
+	
+	// 타겟 유효성 검사
+	if (!IsValid(HomingTarget))
+	{
+		Destroy();
+		return;
+	}
+
+	AV12_the_gamePawn* TargetPawn = Cast<AV12_the_gamePawn>(HomingTarget);
+	if (TargetPawn && TargetPawn->bMissileDefenseActive)
+	{
+		Destroy();
+		return;
+	}
+
+	// DebugSphere
+	DrawDebugSphere(
+		GetWorld(),
+		GetActorLocation(),
+		50.f,
+		12,
+		FColor::Red,
+		false,
+		0.1f
+	);
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	float DistanceToTarget = FVector::Dist(GetActorLocation(), HomingTarget->GetActorForwardVector());
+
+	if (DistanceToTarget > 1000.f)
+	{
+		FVector Start = GetActorLocation();
+		FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
+		FHitResult Hit;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		if (GetWorld()->LineTraceSingleByChannel(
+			Hit,
+			Start,
+			End,
+			ECC_Visibility,
+			Params))
+		{
+			float TargetZ = Hit.Location.Z + DesiredAltitude;
+			FVector CurrentLocation = GetActorLocation();
+
+			float NewZ = FMath::FInterpTo(
+				CurrentLocation.Z,
+				TargetZ,
+				DeltaTime,
+				AltitudeInterpSpeed
+			);
+			SetActorLocation(
+				FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
+				false
+			);
+		}
+	}
+
+	CheckArrival();
 }
 
 void AV12HomingMissile::BeginPlay()
@@ -55,14 +140,17 @@ void AV12HomingMissile::BeginPlay()
 // 코드 재확인 필요
 void AV12HomingMissile::SetHomingTarget(AActor* NewTarget)
 {
-	HomingTarget = NewTarget;
-
-	if (!ProjectileMovement || !NewTarget)
+	if (!HasAuthority())
 	{
 		return;
 	}
 
-	ProjectileMovement->HomingTargetComponent = NewTarget->GetRootComponent();
+	HomingTarget = NewTarget;
+
+	if (ProjectileMovement && NewTarget)
+	{
+		ProjectileMovement->HomingTargetComponent = NewTarget->GetRootComponent();
+	}
 }
 
 void AV12HomingMissile::OnMissileOverlap(
@@ -73,7 +161,7 @@ void AV12HomingMissile::OnMissileOverlap(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (bExploded)
+	if (!HasAuthority() || bExploded)
 	{
 		return;
 	}
@@ -84,14 +172,18 @@ void AV12HomingMissile::OnMissileOverlap(
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
+	
+	if (OtherActor == HomingTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());
 
-	Explode();
+		Explode();
+	}
 }
 
 void AV12HomingMissile::Explode()
 {
-	if (bExploded)
+	if (!HasAuthority() || bExploded)
 	{
 		return;
 	}
@@ -110,6 +202,29 @@ void AV12HomingMissile::Explode()
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->HomingTargetComponent = nullptr;
+	}
+
+	// 데미지 처리
+	if (HomingTarget)
+	{
+		AV12_the_gamePawn* HitPawn = Cast<AV12_the_gamePawn>(HomingTarget);
+
+		// 차량 폰 클래스만 처리
+		if (HitPawn)
+		{
+			// HelthComponent 찾기
+			UV12_HealthComponent* HealthComp = HitPawn->FindComponentByClass<UV12_HealthComponent>();
+			if (!HealthComp)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Missile] HealthComponent not found on %s"), *GetNameSafe(HitPawn));
+				return;
+			}
+
+			// 데미지 Apply
+			HealthComp->ApplyDamage(DamageAmount);
+
+			UE_LOG(LogTemp, Warning, TEXT("Missile Hit : %s | Damage = %.1f"), *GetNameSafe(HitPawn), DamageAmount);
+		}
 	}
 
 	UWorld* World = GetWorld();
@@ -147,88 +262,34 @@ void AV12HomingMissile::Explode()
 	SetLifeSpan(0.1f);
 }
 
-void AV12HomingMissile::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	// 타겟 유효성 검사
-	if (!IsValid(HomingTarget))
-	{
-		Destroy();
-		return;
-	}
-
-	AV12_the_gamePawn* TargetPawn = Cast<AV12_the_gamePawn>(HomingTarget);
-	if (TargetPawn && TargetPawn->bMissileDefenseActive)
-	{
-		Destroy();
-		return;
-	}
-
-	// DebugSphere
-	DrawDebugSphere(
-		GetWorld(),
-		GetActorLocation(),
-		50.f,
-		12,
-		FColor::Red,
-		false,
-		0.1f
-	);
-
-	if (bExploded) return;
-
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	FVector Start = GetActorLocation();
-	FVector End = Start - FVector(0.f, 0.f, GroundTraceDistance);
-
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this);
-
-	if (World->LineTraceSingleByChannel(
-		Hit,
-		Start,
-		End,
-		ECC_Visibility,
-		Params))
-	{
-		float TargetZ = Hit.Location.Z + DesiredAltitude;
-		FVector CurrentLocation = GetActorLocation();
-
-		float NewZ = FMath::FInterpTo(
-			CurrentLocation.Z,
-			TargetZ,
-			DeltaTime,
-			AltitudeInterpSpeed
-		);
-		SetActorLocation(
-			FVector(CurrentLocation.X, CurrentLocation.Y, NewZ),
-			false
-		);
-	}
-
-	CheckArrival();
-}
-
 // 목표물 도착 판정 함수
 void AV12HomingMissile::CheckArrival()
 {
-	if (bExploded || !IsValid(HomingTarget)) return;
+	if (!HasAuthority())
+	{
+		return;
+	}
 
-	float Distance =
+	if (bExploded || !IsValid(HomingTarget))
+	{
+		return;
+	}
+
+	const float Distance =
 		FVector::Dist(GetActorLocation(), HomingTarget->GetActorLocation());
 
 	if (Distance <= ArrivalRadius)
 	{
-		ProjectileMovement->bIsHomingProjectile = false;
-		ProjectileMovement->Velocity =
-			(GetActorForwardVector() * ProjectileMovement->MaxSpeed);
-
 		UE_LOG(LogTemp, Warning, TEXT("Arrival Explode"));
 
 		Explode();
 	}
+}
+
+void AV12HomingMissile::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AV12HomingMissile, HomingTarget);
 }

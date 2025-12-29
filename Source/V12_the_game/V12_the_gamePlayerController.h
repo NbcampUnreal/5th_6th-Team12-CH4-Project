@@ -114,18 +114,46 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ChangeLockOnTarget();
 
+	UFUNCTION(Server, Reliable)
+	void Server_ScanTargets();
+
+	UFUNCTION(Server, Reliable)
+	void Server_CycleTarget();
+
+	UFUNCTION(Server, Reliable)
+	void Server_EnterLockOnMode();
+
+	UFUNCTION(Server, Reliable)
+	void Server_CancelLockOn();
+
+	UFUNCTION(Server, Reliable)
+	void Server_ConfirmMissileFire();
+
+	UFUNCTION()
+	void OnRep_LockedTarget();
+
+	UFUNCTION()
+	void OnRep_LockOnMode();
+
+	// 락온모드 연속 진입 방지용 함수
+	UFUNCTION(BlueprintPure)
+	bool IsLockOnMode() const;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;
 
 	// LockOn Target
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(ReplicatedUsing = OnRep_LockedTarget, BlueprintReadOnly)
 	AActor* LockedTarget = nullptr;
+
+	UPROPERTY()
+	AActor* CachedLockOnTarget;
 
 	UPROPERTY()
 	TSubclassOf<AActor> PendingMissileItemClass;
 
-	// 락온모드 연속 진입 방지용 함수
-	bool IsLockOnMode() const { return bIsLockOnMode; }
+	UPROPERTY(ReplicatedUsing = OnRep_LockOnMode, BlueprintReadOnly)
+	bool bIsLockOnMode = false;
 
 protected:
 	// 아이템창 UI 띄우기
@@ -144,7 +172,7 @@ protected:
 	UV12LockOnWidget* LockOnWidget;
 
 	// LockOnMarker(Indicator)
-		// Missile LockOn UI
+	// Missile LockOn UI
 	UPROPERTY(EditDefaultsOnly, Category = "UI|LockOn")
 	TSubclassOf<UUserWidget> LockOnMarkerClass;
 
@@ -157,18 +185,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	UPrimitiveComponent* RootPrimitive;
 
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsLockOnMode = false;
-
 	UPROPERTY(EditDefaultsOnly)
 	float LockOnDotThreshold = 0.8f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "LockOn")
-	float MaxLockOnDistance = 7000.f;
+	float MaxLockOnDistance = 9000.f;
 
 	// 현재 타겟 인덱스
 	int32 CurrentTargetIndex = -1;
 
 #pragma endregion
-
 };

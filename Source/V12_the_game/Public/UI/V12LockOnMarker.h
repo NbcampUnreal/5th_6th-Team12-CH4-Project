@@ -18,12 +18,19 @@ class V12_THE_GAME_API UV12LockOnMarker : public UUserWidget
 
 public:
 
-	UPROPERTY(BlueprintReadOnly, Category = "LockOn")
-	UPrimitiveComponent* TargetedComponent;
+	//UPROPERTY(BlueprintReadOnly, Category = "LockOn")
+	//UPrimitiveComponent* TargetedComponent;
 
 	UFUNCTION(BlueprintCallable)
 	void SetMarkerVisible(bool bVisible);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateScreenPosition(const FVector2D& ScreenPos);
+
+	UFUNCTION(BlueprintCallable, Category = "LockOn")
+	void SetTargetedActor(AActor* NewTarget);
+
+protected:
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<AActor> TargetActor;
 };

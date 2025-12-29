@@ -22,7 +22,7 @@ public:
 		ItemName = "Missile";
 	}
 
-	virtual void UseItem(AActor* TargetActor) override;
+	virtual void UseItem(AActor* OwnerActor) override;
 
 	void SetTarget(AActor* InTarget);
 
@@ -38,5 +38,5 @@ protected:
 	TSubclassOf<AV12HomingMissile> MissileClass;
 
 	UPROPERTY()
-	AActor* MissileTargetActor;
+	TWeakObjectPtr<AActor> MissileTargetActor;
 };

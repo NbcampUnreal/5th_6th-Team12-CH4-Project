@@ -8,34 +8,52 @@
 #include "V12_the_gamePlayerController.h"
 
 
-void AV12MissileItem::UseItem(AActor* TargetActor)
+void AV12MissileItem::UseItem(AActor* OwnerActor)
 {
-	Super::UseItem(TargetActor);
+	Super::UseItem(OwnerActor);
 
-	if (!TargetActor) return;
+	if (!OwnerActor)
+	{
+		return;
+	}
 
-	APawn* OwnerPawn = Cast<APawn>(TargetActor);
-	if (!OwnerPawn) return;
+	if (!OwnerActor->HasAuthority())
+	{
+		return;
+	}
 
-	APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
-	if (!PC) return;
+	APawn* OwnerPawn = Cast<APawn>(OwnerActor);
+	if (!OwnerPawn)
+	{
+		return;
+	}
 
-	AV12_the_gamePlayerController* V12PC =
-		Cast<AV12_the_gamePlayerController>(PC);
+	if (!MissileClass)
+	{
+		return;
+	}
 
-	if (!V12PC) return;
+	AActor* FinalTarget = MissileTargetActor.Get();
+	if (!FinalTarget)
+	{
+		FinalTarget = FindBestTarget(OwnerActor);
+	}
 
-	// 서버에서만 스폰
-	if (!OwnerPawn->HasAuthority()) return;
+	if (!FinalTarget)
+	{
+		return;
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = OwnerPawn;
 	Params.Instigator = OwnerPawn;
 
-	// 미사일 스폰 위치
+	// 미사일 스폰 위치 계산
+	const FVector SpawnLocation = OwnerPawn->GetActorLocation() + OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
+
+	// 미사일 스폰
 	AV12HomingMissile* Missile = GetWorld()->SpawnActor<AV12HomingMissile>(
-		MissileClass,
-		OwnerPawn->GetActorLocation() + OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f),
+		MissileClass, SpawnLocation, 
 		OwnerPawn->GetActorRotation(),
 		Params
 	);
@@ -43,7 +61,7 @@ void AV12MissileItem::UseItem(AActor* TargetActor)
 	if (Missile)
 	{
 		// 락온 타겟 전달
-		Missile->SetHomingTarget(V12PC->LockedTarget);
+		Missile->SetHomingTarget(FinalTarget);
 	}
 }
 
@@ -61,7 +79,10 @@ AActor* AV12MissileItem::SelectTarget(AActor* OwnerActor)
 // 자동으로 타겟 찾기
 AActor* AV12MissileItem::FindBestTarget(AActor* OwnerActor) 
 {
-	if (!OwnerActor) return nullptr;
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		return nullptr;
+	}
 
 	UWorld* World = OwnerActor->GetWorld(); 
 	
@@ -81,14 +102,18 @@ AActor* AV12MissileItem::FindBestTarget(AActor* OwnerActor)
 	{ 
 		APawn* Pawn = *It; 
 		
-		if (!Pawn || Pawn == OwnerActor) continue; 
+		if (!Pawn || Pawn == OwnerActor)
+		{
+			continue;
+		}
 		
 		FVector ToTarget = (Pawn->GetActorLocation() - OwnerLoc).GetSafeNormal();
 		float Dot = FVector::DotProduct(OwnerForward, ToTarget);
 		
 		if (Dot > BestDot) 
 		{ 
-			BestDot = Dot; BestTarget = Pawn; 
+			BestDot = Dot; 
+			BestTarget = Pawn; 
 		} 
 	} 
 	return BestTarget; 

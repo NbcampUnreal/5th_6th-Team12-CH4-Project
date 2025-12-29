@@ -95,12 +95,12 @@ void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
 
 	CarMesh->WakeAllRigidBodies();
 
-	// ===== ?�아가??방향 =====
+	// ===== ?�아가??방향 =====
 	FVector Dir = GetActorLocation() - HitLocation;
 	Dir.Z = 0.f;
 	Dir.Normalize();
 
-	// ===== ?�형 ?�펄??(??+ ?? =====
+	// ===== ?�형 ?�펄??(??+ ?? =====
 	FVector LaunchImpulse =
 		Dir * HorizontalImpulse +
 		FVector(0.f, 0.f, VerticalImpulse);
@@ -111,7 +111,7 @@ void AV12_the_gameSportsCar::LaunchAndSpin(const FVector& HitLocation)
 		true   // 질량 무시
 	);
 
-	// ===== ?�전 ?�펄??(??바�? =====
+	// ===== ?�전 ?�펄??(??바�? =====
 	FVector AngularImpulse =
 		GetActorRightVector() * SpinImpulse;
 
@@ -130,7 +130,7 @@ void AV12_the_gameSportsCar::ActivateBoost(float BoostForce)
 
 	FVector Forward = GetActorForwardVector();
 
-	// 차량?????�펄???�용 (질량 무시)
+	// 차량?????�펄???�용 (질량 무시)
 	RootComp->AddImpulse(Forward * BoostForce, NAME_None, true);
 }
 
