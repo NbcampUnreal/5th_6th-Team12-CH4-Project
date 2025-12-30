@@ -24,16 +24,16 @@ struct FCurvePointData
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	FVector Location;
+	FVector Location=FVector::ZeroVector;
 	UPROPERTY(BlueprintReadOnly)
 	float DistanceFromSlineOGPoint;// the location from the starting point of the spline
 	
 	UPROPERTY(BlueprintReadOnly)
-	FVector ForwardDirection;
+	FVector ForwardDirection=FVector::ZeroVector;
 	UPROPERTY(BlueprintReadOnly)
-	FVector UpDirection;
+	FVector UpDirection=FVector::ZeroVector;
 	UPROPERTY(BlueprintReadOnly)
-	FVector RightDirection;
+	FVector RightDirection=FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly)
 	float CurvatureValue;
@@ -77,11 +77,11 @@ struct FCurveSegment
 
 	
 	UPROPERTY(BlueprintReadOnly)
-	FVector StartTangent;
+	FVector StartTangent=FVector::ZeroVector;
 
 	// Tangent at the end point (can be calculated from End -> Peak or End -> Start)
 	UPROPERTY(BlueprintReadOnly)
-	FVector EndTangent;
+	FVector EndTangent=FVector::ZeroVector;
 
 	// segment length, for procedural sampling or subdivision
 	UPROPERTY(BlueprintReadOnly)
@@ -96,13 +96,13 @@ struct FAdaptiveSplinePoint
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	FVector Location;
+	FVector Location=FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly)// the handle of the curve
-	FVector Tangent;
+	FVector Tangent=FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadOnly)
-	FVector UpVector;
+	FVector UpVector=FVector::ZeroVector;
 };
 
 
