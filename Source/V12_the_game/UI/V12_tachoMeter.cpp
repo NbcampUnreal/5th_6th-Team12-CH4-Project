@@ -14,6 +14,19 @@ void UV12_tachoMeter::UpdateRPM(float CurrentRPM)
 	NeedleImage->SetRenderTransformAngle(TargetAngle);
 }
 
+void UV12_tachoMeter::UpdateSpeed(float currentSpeed)
+{
+	if (!IsValid(SpeedNeedleImage)) return;
+
+	float FormattedSpeed = FMath::Abs(currentSpeed) * (0.036f);
+
+	float ClampedSpeed = FMath::Clamp(FormattedSpeed, 0.f, 240.f);
+	float SpeedRatio = ClampedSpeed / 240.f;
+	float TargetAngle = FMath::Lerp(MinAngle, MaxAngle, SpeedRatio);
+
+	SpeedNeedleImage->SetRenderTransformAngle(TargetAngle);
+}
+
 void UV12_tachoMeter::UpdateScore(int32 NewScore)
 {
 	if (!IsValid(NowScore)) return;

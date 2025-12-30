@@ -16,6 +16,7 @@ class V12_THE_GAME_API AV12PlayerState : public APlayerState
 
 public:
     AV12PlayerState();
+    virtual void CopyProperties(APlayerState* PlayerState) override;
 
     UPROPERTY(ReplicatedUsing = OnRep_LobbyPlayerName, BlueprintReadOnly, Category = "Lobby")
     FString PlayerName;

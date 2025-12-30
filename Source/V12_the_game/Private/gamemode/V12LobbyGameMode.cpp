@@ -4,6 +4,15 @@
 #include "gamemode/V12LobbyGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/V12PlayerState.h"
+#include "V12_the_gamePlayerController.h"
+#include "Game/V12GameInstance.h"
+
+
+
+AV12LobbyGameMode::AV12LobbyGameMode()
+{
+    bUseSeamlessTravel = true;
+}
 
 void AV12LobbyGameMode::PostLogin(APlayerController* NewPlayer)
 {
@@ -20,4 +29,17 @@ void AV12LobbyGameMode::PostLogin(APlayerController* NewPlayer)
             PS->SetPlayerNameOnServer(TempName);
         }
     }
+    if (UV12GameInstance* GI = Cast<UV12GameInstance>(GetGameInstance()))
+    {
+        GI->allPlayerCount++;
+    }
+}
+
+void AV12LobbyGameMode::Logout(AController* Exiting)
+{
+    Super::Logout(Exiting);
+    if (UV12GameInstance* GI = Cast<UV12GameInstance>(GetGameInstance()))
+    {
+        GI->allPlayerCount--;
+	}
 }

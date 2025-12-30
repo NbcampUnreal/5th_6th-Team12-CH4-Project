@@ -18,8 +18,11 @@ class V12_THE_GAME_API AV12_MainGameMode : public AGameMode
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+	virtual void PostSeamlessTravel() override;
 
 public:
+	AV12_MainGameMode();
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	TArray<AV12_the_gamePlayerController*> A_PC;
 
@@ -31,5 +34,6 @@ public:
 	void CountdownFunc();
 
 	int32 countdownCount;
+	int32 allPlayerCount = 300;
 	
 };

@@ -24,20 +24,30 @@ protected:
 	UImage* BackgroundImage;
 
 	UPROPERTY(meta = (BindWidget))
+	UImage* SpeedNeedleImage;
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* SpeedBackgroundImage;
+
+
+	UPROPERTY(meta = (BindWidget))
 	UTextBlock* NowScore;
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Countdown;
 
 	UPROPERTY(EditAnywhere, Category = "Tachometer")
-	float MinAngle = -135.f;
+	float MinAngle = -139.f;
 
 	UPROPERTY(EditAnywhere, Category = "Tachometer")
-	float MaxAngle = 135.f;
+	float MaxAngle = 139.f;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Tachometer")
 	void UpdateRPM(float CurrentRPM);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateSpeed(float CurrentSpeed);
 
 	UFUNCTION(BlueprintCallable, Category = "Tachometer")
 	void UpdateScore(int32 NewScore);
