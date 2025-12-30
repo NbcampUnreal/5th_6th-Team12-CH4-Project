@@ -20,5 +20,4 @@ void AV12LobbyGameMode::PostLogin(APlayerController* NewPlayer)
             PS->SetPlayerNameOnServer(TempName);
         }
     }
-
 }

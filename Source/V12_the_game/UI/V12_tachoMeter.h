@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 #include "V12_tachoMeter.generated.h"
 
 /**
@@ -22,6 +23,12 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UImage* BackgroundImage;
 
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* NowScore;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* Countdown;
+
 	UPROPERTY(EditAnywhere, Category = "Tachometer")
 	float MinAngle = -135.f;
 
@@ -31,4 +38,10 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Tachometer")
 	void UpdateRPM(float CurrentRPM);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateScore(int32 NewScore);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateCountdown(const FText& NewText);
 };

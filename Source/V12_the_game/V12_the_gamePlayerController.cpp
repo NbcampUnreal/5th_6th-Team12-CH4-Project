@@ -19,7 +19,7 @@
 #include "Items/V12MissileItem.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "UI/V12_tachoMeter.h"
-
+#include "Player/V12PlayerState.h"
 
 AV12_the_gamePlayerController::AV12_the_gamePlayerController()
 {
@@ -42,7 +42,7 @@ void AV12_the_gamePlayerController::BeginPlay()
 		if (VehicleUI)
 		{
 			VehicleUI->AddToViewport();
-
+			
 		}
 		else {
 
@@ -82,11 +82,11 @@ void AV12_the_gamePlayerController::BeginPlay()
 
 	if (IsLocalPlayerController())
 	{
-		SpeedUI = CreateWidget<UV12_tachoMeter>(this, SpeedUIClass);
+		RaceUI = CreateWidget<UV12_tachoMeter>(this, RaceUIClass);
 
-		if (SpeedUI)
+		if (RaceUI)
 		{
-			SpeedUI->AddToViewport();
+			RaceUI->AddToViewport();
 
 		}
 		else
@@ -135,11 +135,24 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			}
 		}
 
-		/// RPM Update
-		if (IsValid(VehiclePawn) && IsValid(SpeedUI))
+		/// RPM and Score Update
+		if (IsValid(VehiclePawn) && IsValid(RaceUI))
 		{
+			// rpm
 			float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
-			SpeedUI->UpdateRPM(nowRPM);
+			RaceUI->UpdateRPM(nowRPM);
+
+			// score
+			AV12PlayerState* PS = this->GetPlayerState<AV12PlayerState>();
+			if (IsValid(PS))
+			{
+				RaceUI->UpdateScore(PS->PlayerScore);
+			}
+			else
+			{
+				RaceUI->UpdateScore(0);
+			}
+
 			// UE_LOG(LogTemp, Warning, TEXT("Current RPM: %f"), nowRPM);
 		}
 
@@ -148,6 +161,21 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
 			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
 		}
+
+		// LockOn Wiget Position Update
+		//if (bIsLockOnMode && LockedTarget && LockOnWidget)
+		//{
+		//	// LockOn Marker Posistion
+		//	FVector2D ScreenPos;
+		//	ProjectWorldLocationToScreen(
+		//		LockedTarget->GetActorLocation() + FVector(0, 0, 100.f),
+		//		ScreenPos, true
+		//	);
+
+		//	LockOnMarker->UpdateScreenPosition(ScreenPos);
+		//}
+
+		// LockOn Distance Cancel
 
 		// 락온 중이 아니니 아무 것도 안한다
 		if (LockedTarget)
@@ -201,6 +229,27 @@ void AV12_the_gamePlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 		}
 	}
 }
+
+void AV12_the_gamePlayerController::BeginRace_Implementation()
+{
+	if(IsValid(VehiclePawn))
+	{
+		VehiclePawn->setRaceStart(true);
+	}
+	else
+	{
+		VehiclePawn = Cast<AV12_the_gamePawn>(GetPawn());
+	}
+}
+
+void AV12_the_gamePlayerController::CountdownCheck_Implementation(const FText& nowCount)
+{
+	if (IsValid(RaceUI))
+	{
+		RaceUI->UpdateCountdown(nowCount);
+	}
+}
+
 
 #pragma region Item(Missile)
 

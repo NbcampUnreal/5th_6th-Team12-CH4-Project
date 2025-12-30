@@ -389,4 +389,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Vehicle")
 	float GetSpeedKmh() const;
+
+public:
+	void setRaceStart(bool val);
+	bool getRaceStart() const { return bRaceStart; }
+private:
+	bool bRaceStart = false;
 };

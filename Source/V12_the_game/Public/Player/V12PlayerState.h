@@ -22,6 +22,11 @@ public:
 
     void SetPlayerNameOnServer(const FString& NewName);
 
+    // 게임 매니저사용
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "GameManager")
+    int32 PlayerScore = 0;
+
+
 protected:
     UFUNCTION()
     void OnRep_LobbyPlayerName();
