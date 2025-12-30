@@ -27,6 +27,12 @@ public:
     int32 PlayerScore = 0;
 
 
+    UPROPERTY(ReplicatedUsing = OnRep_VehicleColor)
+    FLinearColor VehicleColor;
+
+    UFUNCTION()
+    void OnRep_VehicleColor();
+
 protected:
     UFUNCTION()
     void OnRep_LobbyPlayerName();

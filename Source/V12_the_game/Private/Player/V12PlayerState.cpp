@@ -2,6 +2,7 @@
 
 #include "Player/V12PlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "V12_the_gamePawn.h"
 
 AV12PlayerState::AV12PlayerState()
 {
@@ -14,6 +15,14 @@ void AV12PlayerState::SetPlayerNameOnServer(const FString& NewName)
     PlayerName = NewName;
 }
 
+void AV12PlayerState::OnRep_VehicleColor()
+{
+    UE_LOG(LogTemp, Warning,
+        TEXT("[OnRep_VehicleColor] Color=%s"),
+        *VehicleColor.ToString()
+    );
+}
+
 void AV12PlayerState::OnRep_LobbyPlayerName()
 {
 }
@@ -23,5 +32,6 @@ void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(AV12PlayerState, PlayerName);
+    DOREPLIFETIME(AV12PlayerState, VehicleColor);
     DOREPLIFETIME(AV12PlayerState, PlayerScore);
 }

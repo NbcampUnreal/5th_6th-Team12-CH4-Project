@@ -3,6 +3,7 @@
 #include "V12_the_gamePawn.h"
 #include "V12_the_gameWheelFront.h"
 #include "V12_the_gameWheelRear.h"
+#include "Player/V12PlayerState.h"
 #include "SportsCar/V12_HealthComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -22,6 +23,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "Sound/SoundAttenuation.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -145,8 +147,45 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//Drift
+	//몸체 색 변경을 위한 컴포넌트 변수 지정
+	TArray<UActorComponent*> Components;
+	GetComponents(UStaticMeshComponent::StaticClass(), Components);
 
+	for (UActorComponent* Comp : Components)
+	{
+		if (UStaticMeshComponent* SM = Cast<UStaticMeshComponent>(Comp))
+		{
+			if (SM->ComponentHasTag(TEXT("VehicleBody")))
+			{
+				VehicleBodyMesh = SM;
+				UE_LOG(LogTemp, Warning,
+					TEXT("VehicleBody FOUND: %s"),
+					*SM->GetName()
+				);
+				break;
+			}
+		}
+	}
+
+	ensureMsgf(VehicleBodyMesh, TEXT("VehicleBody StaticMesh NOT FOUND"));
+
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("VehicleBodyMesh NOT FOUND")
+		);
+	}
+
+	if (AV12PlayerState* PS = GetPlayerState<AV12PlayerState>())
+	{
+		ApplyVehicleColor(PS->VehicleColor);
+		UE_LOG(LogTemp, Warning,
+			TEXT("PlayerState FOUND Color=%s"),
+			*PS->VehicleColor.ToString()
+		);
+	}
+
+	//Drift
 	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
 
 	DefaultSideSlipModifier.SetNum(WheelCount);
@@ -203,13 +242,46 @@ void AV12_the_gamePawn::Tick(float Delta)
 	bool bMovingOnGround = ChaosVehicleMovement->IsMovingOnGround();
 	GetMesh()->SetAngularDamping(bMovingOnGround ? 0.0f : 3.0f);
 
+	const float SpeedKmh = GetSpeedKmh();
+
+	if (HasAuthority() && bIsDrifting)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DriftTick] Authority Drift Active"));
+
+		//float Steer = ChaosVehicleMovement->GetSteeringInput();
+		//float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+
+		UE_LOG(LogTemp, Warning, TEXT("[Drift] Server Steer: %f"), RepSteerInput);
+		FVector Torque(0, 0, DriftTorqueStrength * RepSteerInput);
+
+		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
+
+		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
+		VehicleMesh->AddForce(ForwardForce);
+
+		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
+
+		FVector Vel = GetVelocity();
+		FVector Right = GetActorRightVector();
+		float LateralSpeed = FVector::DotProduct(Vel, Right);
+
+		float CounterSteer = -LateralSpeed * CounterSteerStrength;
+
+		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
+
+		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
+	}
+
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
 	// realign the camera yaw to face front
 	float CameraYaw = BackSpringArm->GetRelativeRotation().Yaw;
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
-
-	const float SpeedKmh = GetSpeedKmh();
 
 	float TargetDistance = DefaultCameraDistance;
 	float TargetFOV = DefaultFOV;
@@ -294,36 +366,26 @@ void AV12_the_gamePawn::Tick(float Delta)
 		);
 	}
 
-	if (bIsDrifting)
-	{
-		float Steer = ChaosVehicleMovement->GetSteeringInput();
-		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+	
+}
 
-		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
+void AV12_the_gamePawn::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
 
-		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
-
-		FVector ForwardForce = GetActorForwardVector() * DriftForwardForce;
-		VehicleMesh->AddForce(ForwardForce);
-		
-		/*float SteerInput = ChaosVehicleMovement->GetSteeringInput();
-
-		FVector Vel = GetVelocity();
-		FVector Right = GetActorRightVector();
-		float LateralSpeed = FVector::DotProduct(Vel, Right);
-
-		float CounterSteer = -LateralSpeed * CounterSteerStrength;
-
-		float FinalSteer = FMath::Clamp(SteerInput + CounterSteer,-1.f, 1.f);
-
-		ChaosVehicleMovement->SetSteeringInput(FinalSteer);*/
-	}
+	TryApplyVehicleColor();
 }
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
 {
+	float Steer = Value.Get<float>();
 	// route the input
-	DoSteering(Value.Get<float>());
+	DoSteering(Steer);
+
+	if (IsLocallyControlled())
+	{
+		Server_SetSteerInput(Steer);
+	}
 }
 
 void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
@@ -384,10 +446,26 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 {
-	DoHandbrakeStart();
+	if (!IsLocallyControlled()) return;
 
-	bIsDrifting = true;
+	//DoHandbrakeStart();
+	Server_SetBrake(true);
+	ApplyDriftPhysics();
+	Server_SetDrifting(true);
+}
 
+void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
+{
+	if (!IsLocallyControlled()) return;
+
+	//DoHandbrakeStop();
+	Server_SetBrake(false);
+	RestoreDriftPhysics();
+	Server_SetDrifting(false);
+}
+
+void AV12_the_gamePawn::ApplyDriftPhysics()
+{
 	ChaosVehicleMovement->SetMaxEngineTorque(MaxEngineTorque);
 
 	for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
@@ -409,12 +487,8 @@ void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 	}
 }
 
-void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
+void AV12_the_gamePawn::RestoreDriftPhysics()
 {
-	DoHandbrakeStop();
-
-	bIsDrifting = false;
-
 	ChaosVehicleMovement->SetMaxEngineTorque(DefaultEngineTorque);
 
 	for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
@@ -422,6 +496,26 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 		ChaosVehicleMovement->Wheels[i]->SideSlipModifier = DefaultSideSlipModifier[i];
 		ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier = DefaultFrictionForceMultiplier[i];
 		ChaosVehicleMovement->Wheels[i]->CorneringStiffness = DefaultCorneringStiffness[i];
+	}
+}
+
+void AV12_the_gamePawn::Server_SetSteerInput_Implementation(float Steer)
+{
+	RepSteerInput = FMath::Clamp(Steer, -1.f, 1.f);
+	DoSteering(Steer);
+}
+
+void AV12_the_gamePawn::Server_SetDrifting_Implementation(bool bNewDrift)
+{
+	bIsDrifting = bNewDrift;
+
+	if (bIsDrifting)
+	{
+		ApplyDriftPhysics();
+	}
+	else
+	{
+		RestoreDriftPhysics();
 	}
 }
 
@@ -492,6 +586,8 @@ void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AV12_the_gamePawn, bMissileDefenseActive);
+	DOREPLIFETIME(AV12_the_gamePawn, bIsDrifting);
+	DOREPLIFETIME(AV12_the_gamePawn, RepSteerInput);
 }
 
 #pragma endregion
@@ -501,6 +597,69 @@ void AV12_the_gamePawn::Server_RequestDamage_Implementation(float Damage)
 	if (!HealthComponent) return;
 
 	HealthComponent->ApplyDamage(Damage);
+}
+
+void AV12_the_gamePawn::ApplyVehicleColor(const FLinearColor& Color)
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("[ApplyVehicleColor] Pawn=%s | NetMode=%d | Role=%d"),
+		*GetName(),
+		(int32)GetNetMode(),
+		(int32)GetLocalRole()
+	);
+	
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("VehicleBodyMesh is NULL")
+		);
+		return;
+	}
+	const int32 PaintMaterialIndex = 1;
+
+	UMaterialInterface* BaseMaterial = VehicleBodyMesh->GetMaterial(PaintMaterialIndex);
+
+	if (!BaseMaterial) return;
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Material[%d]: %s"),
+		PaintMaterialIndex,
+		*BaseMaterial->GetName()
+	);
+
+	UMaterialInstanceDynamic* MID = VehicleBodyMesh->CreateAndSetMaterialInstanceDynamicFromMaterial(PaintMaterialIndex, BaseMaterial);
+
+	if (MID)
+	{
+		MID->SetVectorParameterValue(TEXT("Paint Tint"), Color);
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("Paint Tint applied successfully")
+	);
+}
+
+void AV12_the_gamePawn::TryApplyVehicleColor()
+{
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Mesh not ready"));
+		return;
+	}
+
+	AV12PlayerState* PS = GetPlayerState<AV12PlayerState>();
+	if (!PS)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerState not ready"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("TryApplyVehicleColor Color=%s"),
+		*PS->VehicleColor.ToString()
+	);
+
+	ApplyVehicleColor(PS->VehicleColor);
 }
 
 void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)

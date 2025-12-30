@@ -50,7 +50,11 @@ class AV12_the_gamePawn : public AWheeledVehiclePawn
 
 	USkeletalMeshComponent* VehicleMesh;
 
+	UPROPERTY()
+	UStaticMeshComponent* VehicleBodyMesh;
+
 public:
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UV12_HealthComponent* HealthComponent;
 
@@ -171,7 +175,11 @@ protected:
 	TArray<float> DefaultFrictionForceMultiplier;
 	TArray<float> DefaultCorneringStiffness;
 
+	UPROPERTY(Replicated)
 	bool bIsDrifting = false;
+
+	UPROPERTY(Replicated)
+	float RepSteerInput = 0.f;
 
 	//Collision
 	float SideDotThreshold = 0.6f;
@@ -221,7 +229,7 @@ public:
 	/** Update */
 	virtual void Tick(float Delta) override;
 
-	// End Actor interface
+	virtual void OnRep_PlayerState() override;
 
 protected:
 
@@ -255,6 +263,14 @@ protected:
 	void StartDrifting(const FInputActionValue& Value);
 	void StopDrifting(const FInputActionValue& Value);
 
+	void ApplyDriftPhysics();
+	void RestoreDriftPhysics();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetDrifting(bool bNewDrift);
+
+	UFUNCTION(Server, Unreliable)
+	void Server_SetSteerInput(float Steer);
 
 #pragma region Items
 
@@ -295,6 +311,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDamage(float Damage);
 #pragma endregion
+
+	void ApplyVehicleColor(const FLinearColor& Color);
+	void TryApplyVehicleColor();
 
 protected:
 	UFUNCTION()

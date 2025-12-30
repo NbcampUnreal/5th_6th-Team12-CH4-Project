@@ -1,9 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "gamemode/V12_MainGameMode.h"
-#include "V12_the_gamePlayerController.h"
 #include "Player/V12PlayerState.h"
+#include "V12_the_gamePlayerController.h"
 
 void AV12_MainGameMode::BeginPlay()
 {
@@ -27,11 +24,21 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 	Super::PostLogin(NewPlayer);
 	if (!IsValid(NewPlayer)) return;
 	
+	static int32 ColorIndex = 0;
+
 	A_PC.Add(Cast<AV12_the_gamePlayerController>(NewPlayer));
 
     if (AV12PlayerState* PS = NewPlayer->GetPlayerState<AV12PlayerState>())
     {
 		FString tempName = PS->PlayerName;
+
+		if (PresetColors.Num() > 0)
+		{
+			//BP에서 색 지정 후, 복제를 통해 자동 적용
+			PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
+			ColorIndex++;
+		}
+
 		UE_LOG(LogTemp, Error, TEXT("Player Name is %s"), *tempName);
     }
 	else

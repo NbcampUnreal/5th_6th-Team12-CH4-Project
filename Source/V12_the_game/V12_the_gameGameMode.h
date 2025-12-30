@@ -13,6 +13,8 @@ class AV12_the_gameGameMode : public AGameModeBase
 
 public:
 	AV12_the_gameGameMode();
+
+
 };
 
 

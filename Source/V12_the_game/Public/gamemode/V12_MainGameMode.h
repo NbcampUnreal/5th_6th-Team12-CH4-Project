@@ -15,6 +15,9 @@ UCLASS()
 class V12_THE_GAME_API AV12_MainGameMode : public AGameMode
 {
 	GENERATED_BODY()
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Vehicle Color")
+	TArray<FLinearColor> PresetColors;
 
 protected:
 	virtual void BeginPlay() override;
