@@ -244,12 +244,15 @@ void AV12_the_gamePawn::Tick(float Delta)
 
 	const float SpeedKmh = GetSpeedKmh();
 
-	if (bIsDrifting)
+	if (HasAuthority() && bIsDrifting)
 	{
-		float Steer = ChaosVehicleMovement->GetSteeringInput();
-		float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+		UE_LOG(LogTemp, Warning, TEXT("[DriftTick] Authority Drift Active"));
 
-		FVector Torque(0, 0, DriftTorqueStrength * TorqueSign);
+		//float Steer = ChaosVehicleMovement->GetSteeringInput();
+		//float TorqueSign = (Steer >= 0.f ? 1.f : -1.f);
+
+		UE_LOG(LogTemp, Warning, TEXT("[Drift] Server Steer: %f"), RepSteerInput);
+		FVector Torque(0, 0, DriftTorqueStrength * RepSteerInput);
 
 		VehicleMesh->AddTorqueInDegrees(Torque, NAME_None, true);
 
@@ -375,8 +378,14 @@ void AV12_the_gamePawn::OnRep_PlayerState()
 
 void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
 {
+	float Steer = Value.Get<float>();
 	// route the input
-	DoSteering(Value.Get<float>());
+	DoSteering(Steer);
+
+	if (IsLocallyControlled())
+	{
+		Server_SetSteerInput(Steer);
+	}
 }
 
 void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
@@ -435,10 +444,26 @@ void AV12_the_gamePawn::ResetVehicle(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 {
-	DoHandbrakeStart();
+	if (!IsLocallyControlled()) return;
 
-	bIsDrifting = true;
+	//DoHandbrakeStart();
+	Server_SetBrake(true);
+	ApplyDriftPhysics();
+	Server_SetDrifting(true);
+}
 
+void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
+{
+	if (!IsLocallyControlled()) return;
+
+	//DoHandbrakeStop();
+	Server_SetBrake(false);
+	RestoreDriftPhysics();
+	Server_SetDrifting(false);
+}
+
+void AV12_the_gamePawn::ApplyDriftPhysics()
+{
 	ChaosVehicleMovement->SetMaxEngineTorque(MaxEngineTorque);
 
 	for (UChaosVehicleWheel* Wheel : ChaosVehicleMovement->Wheels)
@@ -460,12 +485,8 @@ void AV12_the_gamePawn::StartDrifting(const FInputActionValue& Value)
 	}
 }
 
-void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
+void AV12_the_gamePawn::RestoreDriftPhysics()
 {
-	DoHandbrakeStop();
-
-	bIsDrifting = false;
-
 	ChaosVehicleMovement->SetMaxEngineTorque(DefaultEngineTorque);
 
 	for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
@@ -473,6 +494,26 @@ void AV12_the_gamePawn::StopDrifting(const FInputActionValue& Value)
 		ChaosVehicleMovement->Wheels[i]->SideSlipModifier = DefaultSideSlipModifier[i];
 		ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier = DefaultFrictionForceMultiplier[i];
 		ChaosVehicleMovement->Wheels[i]->CorneringStiffness = DefaultCorneringStiffness[i];
+	}
+}
+
+void AV12_the_gamePawn::Server_SetSteerInput_Implementation(float Steer)
+{
+	RepSteerInput = FMath::Clamp(Steer, -1.f, 1.f);
+	DoSteering(Steer);
+}
+
+void AV12_the_gamePawn::Server_SetDrifting_Implementation(bool bNewDrift)
+{
+	bIsDrifting = bNewDrift;
+
+	if (bIsDrifting)
+	{
+		ApplyDriftPhysics();
+	}
+	else
+	{
+		RestoreDriftPhysics();
 	}
 }
 
@@ -543,6 +584,8 @@ void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AV12_the_gamePawn, bMissileDefenseActive);
+	DOREPLIFETIME(AV12_the_gamePawn, bIsDrifting);
+	DOREPLIFETIME(AV12_the_gamePawn, RepSteerInput);
 }
 
 #pragma endregion

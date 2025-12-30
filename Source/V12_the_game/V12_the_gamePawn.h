@@ -175,7 +175,11 @@ protected:
 	TArray<float> DefaultFrictionForceMultiplier;
 	TArray<float> DefaultCorneringStiffness;
 
+	UPROPERTY(Replicated)
 	bool bIsDrifting = false;
+
+	UPROPERTY(Replicated)
+	float RepSteerInput = 0.f;
 
 	//Collision
 	float SideDotThreshold = 0.6f;
@@ -259,6 +263,14 @@ protected:
 	void StartDrifting(const FInputActionValue& Value);
 	void StopDrifting(const FInputActionValue& Value);
 
+	void ApplyDriftPhysics();
+	void RestoreDriftPhysics();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetDrifting(bool bNewDrift);
+
+	UFUNCTION(Server, Unreliable)
+	void Server_SetSteerInput(float Steer);
 
 #pragma region Items
 
