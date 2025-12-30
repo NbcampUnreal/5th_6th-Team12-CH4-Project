@@ -20,6 +20,7 @@ void AV12PlayerState::CopyProperties(APlayerState* PlayerState)
     {
         NewPS->PlayerName = this->PlayerName;
         NewPS->PlayerScore = this->PlayerScore;
+        NewPS->VehicleColor = this->VehicleColor;
     }
 }
 
@@ -48,4 +49,5 @@ void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
     DOREPLIFETIME(AV12PlayerState, PlayerName);
     DOREPLIFETIME(AV12PlayerState, VehicleColor);
     DOREPLIFETIME(AV12PlayerState, PlayerScore);
+    DOREPLIFETIME(AV12PlayerState, VehicleColor);
 }
