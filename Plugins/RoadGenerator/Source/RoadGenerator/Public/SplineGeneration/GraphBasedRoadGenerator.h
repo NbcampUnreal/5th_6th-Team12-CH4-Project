@@ -7,6 +7,7 @@
 #include "SplineGeneration/SplineInfo.h"
 #include "GraphBasedRoadGenerator.generated.h"
 
+
 //forwardDeclares
 class USplineComponent;
 class AActor;
@@ -48,6 +49,12 @@ public:
 		const FCurveSegment& CurveSegments,
 		//out
 		USplineComponent*& OutGeneratedSpline);
+		
+		
+
+	//PCG Conversion
+	//UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	
 
 protected:
 
