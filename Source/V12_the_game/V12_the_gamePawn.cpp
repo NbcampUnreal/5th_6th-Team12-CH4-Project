@@ -337,18 +337,24 @@ void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 void AV12_the_gamePawn::Brake(const FInputActionValue& Value)
 {
 	// route the input
+	/// 카운트다운중 입력 막기 여기서
+	if (!bRaceStart) return;
 	DoBrake(Value.Get<float>());
 }
 
 void AV12_the_gamePawn::StartBrake(const FInputActionValue& Value)
 {
 	// route the input
+	/// 카운트다운중 입력 막기 여기서
+	if (!bRaceStart) return;
 	DoBrakeStart();
 }
 
 void AV12_the_gamePawn::StopBrake(const FInputActionValue& Value)
 {
 	// route the input
+	/// 카운트다운중 입력 막기 여기서
+	if (!bRaceStart) return;
 	DoBrakeStop();
 }
 

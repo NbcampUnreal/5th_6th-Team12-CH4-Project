@@ -20,6 +20,8 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "UI/V12_tachoMeter.h"
 #include "Player/V12PlayerState.h"
+#include "Game/V12GameInstance.h"
+#include "gamemode/V12_MainGameMode.h"
 
 AV12_the_gamePlayerController::AV12_the_gamePlayerController()
 {
@@ -141,6 +143,11 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			// rpm
 			float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
 			RaceUI->UpdateRPM(nowRPM);
+			
+			//speed
+			float nowSpeed = VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed();
+			// UE_LOG(LogTemp, Error, TEXT("nowSpeed: %f"), nowSpeed);
+			RaceUI->UpdateSpeed(nowSpeed);
 
 			// score
 			AV12PlayerState* PS = this->GetPlayerState<AV12PlayerState>();
@@ -230,6 +237,7 @@ void AV12_the_gamePlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 	}
 }
 
+
 void AV12_the_gamePlayerController::BeginRace_Implementation()
 {
 	if(IsValid(VehiclePawn))
@@ -290,6 +298,7 @@ void AV12_the_gamePlayerController::Server_ScanTargets_Implementation()
 		}
 	}
 }
+
 
 void AV12_the_gamePlayerController::CycleTarget()
 {

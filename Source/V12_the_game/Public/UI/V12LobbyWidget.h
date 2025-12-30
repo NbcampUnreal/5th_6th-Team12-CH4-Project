@@ -20,7 +20,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Lobby")
     void RebuildPlayerList();
 
-    // BP¿¡¼­ ±¸Çö(µðÀÚÀÎ)ÇÒ ÀÌº¥Æ®µé
+    // BPï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ ï¿½Ìºï¿½Æ®ï¿½ï¿½
     UFUNCTION(BlueprintImplementableEvent, Category = "Lobby")
     void ClearPlayerRows();
 

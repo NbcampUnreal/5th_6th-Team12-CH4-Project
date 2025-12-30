@@ -4,6 +4,50 @@
 #include "gamemode/V12_MainGameMode.h"
 #include "V12_the_gamePlayerController.h"
 #include "Player/V12PlayerState.h"
+#include "Game/V12GameInstance.h"
+
+AV12_MainGameMode::AV12_MainGameMode()
+{
+	bUseSeamlessTravel = true;
+}
+
+void AV12_MainGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+
+	AV12_the_gamePlayerController* PC = Cast<AV12_the_gamePlayerController>(C);
+	if (PC)
+	{
+		RestartPlayer(PC);
+
+		A_PC.AddUnique(PC); // 중복 방지
+
+		
+		if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Travel Success - Player Name: %s"), *PS->PlayerName);
+		}
+
+	}
+}
+
+void AV12_MainGameMode::PostSeamlessTravel()
+{
+	Super::PostSeamlessTravel();
+
+	// GameInstance 가져오기
+	UV12GameInstance* GI = GetGameInstance<UV12GameInstance>();
+	if (IsValid(GI))
+	{
+		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
+		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
+		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
+		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
+		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
+	}
+
+	StartCountdown();	
+}
 
 void AV12_MainGameMode::BeginPlay()
 {
@@ -19,9 +63,10 @@ void AV12_MainGameMode::BeginPlay()
 
 
 	/// 정확한 플레이어 갯수를 체크하고 시작하도록 변경
-	StartCountdown();
+	// StartCountdown();
 }
 
+/// Seamless Travel 이용시 PostLogin은 사용하지 않는다!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
@@ -37,6 +82,31 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Player Name is ERROR"));
+	}
+
+	if (UV12GameInstance* GI = Cast<UV12GameInstance>(GetGameInstance()))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Current Player Count: %d"), GI->allPlayerCount);
+		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
+		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
+		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
+		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
+
+
+		if (GI->allPlayerCount == A_PC.Num())
+		{
+			StartCountdown();
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
+
 	}
 
 }
