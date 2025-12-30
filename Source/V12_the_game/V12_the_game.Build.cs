@@ -20,11 +20,9 @@ public class V12_the_game : ModuleRules
 			//UI
 			"UMG", "Slate", "SlateCore",
 			//PCG
-			"PCG", "PCG_InstanceActorSwapper",
-			//Trace Detection
-			//"MathPatterns", "TraceHelperFunctions",
-			//Niagara
-			"Niagara",
+			"PCG", "PCGEditor", "PCG_InstanceActorSwapper",
+			//Road Generation
+			"RoadGenerator",
 			//Niagara
 			"Niagara",
 			//Trace Detection

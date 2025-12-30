@@ -1,0 +1,317 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "SplineGeneration/SplineInfo.h"
+#include "SplineCorrectionHelper.generated.h"
+
+/**
+ *  helper functions for spline compoennt modificaitons
+ */
+
+//	Requirements
+
+#pragma region Requirements
+
+//Forward Declare
+class USplineComponent;
+class AActor;
+
+
+
+//Evaluate the curvature (is it spiked or rounded) ---> only internal struct, not bp exposed
+struct FCurveSegmentEval
+{
+	const FCurvePeak* Peak;
+	float PeakCurvature;
+    
+	float Severity;// 0–1 normalized
+	float EntranceDistance;// evaluated
+	float ExitDistance;// evaluated
+    
+	float StartDistance;// along spline
+	float PeakDistance;
+	float EndDistance;
+    
+	bool bAsymmetric;// Symmetric (rounded) / Asymmetric(spiked)
+};
+
+
+#pragma endregion
+
+//Log
+ROADGENERATOR_API DECLARE_LOG_CATEGORY_EXTERN(SplineCorrectionHelper, Log, All);
+
+UCLASS()
+class ROADGENERATOR_API USplineCorrectionHelper : public UBlueprintFunctionLibrary//changed into bp library
+{
+	GENERATED_BODY()
+
+public:
+	
+	// source detection
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")// get the spline component from the actor
+	static bool GetSplineFromActor(
+		const AActor* InActor,
+		USplineComponent*& OutSpline,
+		//optional search
+		const FName& SplineTag = NAME_None);
+
+	//Curve points
+	UFUNCTION(BlueprintCallable, Category = "Road|Sampling")
+	static bool ResampleSpline(//!!!!  even distribution of the points, not same as sampling with spline points
+		USplineComponent* SourceSpline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,// to prevent too many spline point generating
+		ELocationType Type,
+		bool bIsClosed,// for tangent calculation
+		//Outs
+		float& OutCorrectedDistance,
+		TArray<FCurvePointData>& OutSplinePoints);// not ouptus the FCurvePointData with more info
+
+	UFUNCTION(BlueprintCallable, Category = "Road|Sampling")
+	static bool ResampleSplineInRange(
+		USplineComponent* SourceSpline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType Type,
+		float StartDistance,// for ranged sampling, distance alongside the spline point 0
+		float EndDistance,// same for the end distance
+		float& OutCorrectedDistance,
+		TArray<FCurvePointData>& OutSplinePoints);
+
+	UFUNCTION(BlueprintCallable, Category = "Spline Generation")
+	static TArray<FCurvePointData> SmoothCurvePoints(
+		const TArray<FCurvePointData>& InCurvePoints,
+		float SmoothnessWeight,
+		int32 IterationCount,
+		bool bIsClosed,
+		bool bUseTaubinSmoothing);
+	
+	//--> internal helper for the Smooth curve points, but still can be usefull as exposed function
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")// resetter after location change
+	static void UpdateCurvePointsDirectionsAndCurvature(
+		TArray<FCurvePointData>& CurvePoints,
+		bool bIsClosed);
+
+
+
+//Segment Detection
+
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")//peak point detection
+	static bool DetectCurvePeaks(
+		const TArray<FCurvePointData>& CurvePoints,
+		float MinCurvatureThreshold, // minimum curvature to consider as a peak
+		bool bIsClosed,
+		TArray<FCurvePeak>& OutPeaks);
+
+	// this will be used moslty. for road curve, the normal param will be z direction
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")//peak point detection
+	static bool DetectCurvePeaks_BasedOnNormal(
+		const TArray<FCurvePointData>& CurvePoints,
+		FVector ProjectionNormal,
+		float MinCurvatureThreshold, // minimum curvature to consider as a peak
+		bool bIsClosed,
+		TArray<FCurvePeak>& OutPeaks);
+
+
+	// the segment will be divided based on the peak point of the curve
+	UFUNCTION(BlueprintCallable, Category = "Spline|Analysis")
+	static bool DetectCurveSegmentsFromPeaks(
+		const USplineComponent* SourceSpline,
+		const TArray<FCurvePeak>& Peaks,
+		float EntranceBufferDistance,
+		float ExitRecoveryDistance,
+		float MidpointAlphaOffset,// 0 mid, + more to forward, - more to backward
+		ELocationType Type,
+		FCurveEvaluationValues EvaluationInfo,
+		bool bIsClosed,
+		//out
+		TArray<FCurveSegment>& OutSegments);
+
+	
+	//Cleanup the short segment by dividing and merging to curve segments on sides
+	UFUNCTION(BlueprintCallable, Category="Spline|Analysis")
+	static bool MergeShortStraightSegments(
+		const USplineComponent* SourceSpline,
+		float MinDistance,// the allowed distance for straight path to be, or else, divided, and merged into both curve segment on the sides
+		bool bIsClosed,
+		//out
+		UPARAM(ref)TArray<FCurveSegment>& Segments);//UPARAM(ref) for bp input & output
+
+	static bool RepairAndReattachSegments(// this is for reconstructing the continuity of the segments after the merging
+		const USplineComponent* SourceSpline,
+		bool bIsClosed,
+		ELocationType Type,
+		//out
+		TArray<FCurveSegment>& OutSegments);
+
+
+		
+		
+	
+	/*UFUNCTION(BlueprintCallable, Category = "Road|Generation")
+	static void GenerateSideSplinePoints(
+		USplineComponent* Spline,
+		const TArray<float>& Distances,
+		const TArray<FVector>& Tangents,
+		const TArray<float>& RollDegrees,
+		float OffsetDistance,
+		bool bRightSide,
+		TArray<FVector>& OutSidePoints);*/
+	// bool for right and left is too limited. pass the direction instead
+
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	static bool GenerateSideSplinePoints(
+		USplineComponent* Spline,
+		const TArray<float>& Distances,
+		const TArray<FVector>& Tangents,
+		const TArray<float>& RollDegrees,
+		float OffsetDistance,
+		bool bMirrorDirection,// backward-compatible bool
+		const FVector& CustomOffsetDirection, // use this if non-zero
+		const TArray<FVector>& BankedRightVectors,
+		ELocationType Type,//world or local
+		//out
+		TArray<FVector>& OutSidePoints);
+
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	static bool GetPeakPointFromSplineCurveSegment(// this is for getting the peak point for the one curve(from one segmented curve!!!!)
+		const TArray<FVector>& SegmentPoints,
+		FVector& OutPeakPoint,
+		float& OutDeviation);
+
+	// for getting neighboring index point
+	static bool GetNeighborIndices(
+		int32 Index,
+		int32 Num,
+		bool bIsClosed,
+		//out
+		int32& OutPrev,
+		int32& OutNext);
+
+	// Generate Alpha for peak influence
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	static bool GeneratePeakWeightAlpha(
+		const FCurveSegment& CurveSegment,
+		const TArray<FCurvePointData>& CurvePoints,
+		TArray<float>& OutAlpha);
+
+private:
+
+	//Internal helper functions
+#pragma region Internal HelperFunctions
+
+	//internal resampling
+	static bool ResampleSpline_Internal(
+		USplineComponent* Spline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType Type,
+		float StartDistance,
+		float EndDistance,
+		bool bIsClosed,
+		float& OutCorrectedDistance,
+		TArray<FCurvePointData>& OutSplinePoints);
+
+
+	
+	//Direction
+	static FVector ComputeForwardDirection(const FVector& Start, const FVector& End)
+	{
+		return (End - Start).GetSafeNormal();
+	}
+
+	static float ComputeCurvature(// curvature 
+		const FVector& Prev,
+		const FVector& Curr,
+		const FVector& Next);
+
+	static void ComputeCurvePointDirectionsAndCurvature_Internal(//internal wrapper
+		const FVector& Prev,
+		const FVector& Curr,
+		const FVector& Next,
+		FVector& OutForward,
+		FVector& OutUp,
+		FVector& OutRight,
+		float& OutCurvature);
+
+
+	static void Laplacian_SmoothCurvePoints_Internal(//internal smoothing function using Laplacian method
+		TArray<FVector>& InCurvePointLocations,
+		float SmoothnessWeight,
+		bool bIsClosed);
+
+	static void Taubin_SmoothCurvePoints_Internal(// internal smooth function using Taubin
+		TArray<FVector>& Points,
+		float Weight,
+		bool bIsClosed);
+
+
+	static FCurveSegmentEval EvaluateCurvePeak(
+		const FCurvePeak& Peak,
+		float ComfortCurvature,
+		float MaxExpectedCurvature,
+		float BaseEntranceDistance,
+		float BaseExitDistance,
+		float EntranceScaleMax,
+		float ExitScaleMax,
+		float MidpointAlphaOffset);
+
+
+
+
+	/*// for tangent calculation -> per sampled points, not for segmented curve
+	static FVector ComputeTangentAtIndex(
+		const TArray<FVector>& Locations,
+		int32 Index,
+		bool bIsClosed);*/
+
+	// project and flatten the curve for
+	// after that use them for the peak
+
+	static bool FlattenCurvePointsByProjectionNormal(// internal function for outputting flattend cuve locations
+		const TArray<FCurvePointData>& SplineCurvePoints,
+		bool IsClosed,
+		FVector ProjectionNormal,
+		//out
+		TArray<FVector>& OutFlattenedLocations);
+
+
+	static bool DetectCurvePeaks_Internal(
+		const TArray<FCurvePointData>& CurvePoints,
+		const TArray<FVector>& AnalysisPoints,
+		float MinDeviationThreshold,
+		bool bIsClosed,
+		TArray<FCurvePeak>& OutPeaks);
+		
+	static void BuildCurveSegmentTangents(
+		const FCurvePointData& StartPoint,
+		const FCurvePointData& PeakPoint,
+		const FCurvePointData& EndPoint,
+		//out
+		FVector& OutStartTangent,
+		FVector& OutEndTangent);
+
+	//update the curve tangent after segmentation
+	static void FinalizeCurveSegment(FCurveSegment& CurveSegment);
+	
+
+
+	// internal function for segment resampling+banking
+	bool ResampleAndBankSegment(
+		const FCurveSegment& Segment,
+		USplineComponent* SourceSpline,
+		float DesiredSampleDistance,
+		int32 MaxSamplePoints,
+		ELocationType CoordType,
+		float MaxRollDegrees,
+		TArray<FCurvePointData>& OutRolledPoints);
+
+
+
+#pragma endregion
+	
+};
