@@ -25,6 +25,28 @@ void AV12_MainGameMode::HandleSeamlessTravelPlayer(AController*& C)
 			UE_LOG(LogTemp, Warning, TEXT("Travel Success - Player Name: %s"), *PS->PlayerName);
 		}
 
+
+		static int32 ColorIndex = 0;
+
+
+		if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
+		{
+			FString tempName = PS->PlayerName;
+
+			if (PresetColors.Num() > 0)
+			{
+				//BP에서 색 지정 후, 복제를 통해 자동 적용
+				PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
+				ColorIndex++;
+			}
+
+			UE_LOG(LogTemp, Error, TEXT("Player Name is %s"), *tempName);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Player Name is ERROR"));
+		}
+
 	}
 }
 
