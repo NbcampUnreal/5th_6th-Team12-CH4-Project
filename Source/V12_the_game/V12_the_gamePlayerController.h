@@ -61,10 +61,10 @@ protected:
 
 	/// 속도 타코미터 UI
 	UPROPERTY(EditAnywhere, Category = "Vehicle|UI")
-	TSubclassOf<UV12_tachoMeter> SpeedUIClass;
+	TSubclassOf<UV12_tachoMeter> RaceUIClass;
 
 	UPROPERTY()
-	TObjectPtr<UV12_tachoMeter> SpeedUI;
+	TObjectPtr<UV12_tachoMeter> RaceUI;
 		
 protected:
 
@@ -87,6 +87,16 @@ protected:
 	/** Handles pawn destruction and respawning */
 	UFUNCTION()
 	void OnPawnDestroyed(AActor* DestroyedPawn);
+
+#pragma region UI
+public:
+	UFUNCTION(Client, Reliable)
+	void CountdownCheck(const FText& nowCount);
+
+	UFUNCTION(Client, Reliable)
+	void BeginRace();
+
+#pragma endregion
 
 #pragma region Items
 public:

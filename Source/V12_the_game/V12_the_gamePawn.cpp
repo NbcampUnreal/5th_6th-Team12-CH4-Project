@@ -321,6 +321,8 @@ void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 {
+	/// 카운트다운중 입력 막기 여기서
+	if (!bRaceStart) return;
 	// route the input
 	DoThrottle(Value.Get<float>());
 }
@@ -718,6 +720,11 @@ float AV12_the_gamePawn::GetSpeedKmh() const
 
 	// cm/s → km/h
 	return SpeedCmPerSec * 0.036f;
+}
+
+void AV12_the_gamePawn::setRaceStart(bool val)
+{
+	bRaceStart = val;
 }
 
 #undef LOCTEXT_NAMESPACE

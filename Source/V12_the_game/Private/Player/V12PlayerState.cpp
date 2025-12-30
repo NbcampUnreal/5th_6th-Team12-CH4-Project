@@ -23,4 +23,5 @@ void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
     DOREPLIFETIME(AV12PlayerState, PlayerName);
+    DOREPLIFETIME(AV12PlayerState, PlayerScore);
 }
