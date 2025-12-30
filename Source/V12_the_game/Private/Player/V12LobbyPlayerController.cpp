@@ -8,7 +8,7 @@ void AV12LobbyPlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    //// ·Îºñ UI ¶ç¿ì±â
+    //// ï¿½Îºï¿½ UI ï¿½ï¿½ï¿½ï¿½
     //if (IsLocalController() && LobbyWidgetClass)
     //{
     //    LobbyWidgetInstance = CreateWidget<UV12LobbyWidget>(this, LobbyWidgetClass);

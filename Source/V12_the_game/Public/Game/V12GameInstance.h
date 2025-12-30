@@ -6,6 +6,9 @@
 #include "Engine/GameInstance.h"
 #include "V12GameInstance.generated.h"
 
+class AV12_the_gamePlayerController;
+class AV12PlayerState;
+
 /**
  * 
  */
@@ -15,7 +18,7 @@ class V12_THE_GAME_API UV12GameInstance : public UGameInstance
 	GENERATED_BODY()
 
 public:
-    // ´Ð³×ÀÓ ÀúÀå¿ë
+    // ï¿½Ð³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(BlueprintReadWrite, Category = "Player")
     FString PlayerNickname;
 
@@ -28,8 +31,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Player")
     FString GetPlayerNickname() const { return PlayerNickname; }
 
-    // ´Ð³×ÀÓÀÌ ¼¼ÆÃµÆ´Ù°í °¡Á¤ÇÏ°í ·Îºñ·Î ÀÔÀå
+    // ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÃµÆ´Ù°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Îºï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UFUNCTION(BlueprintCallable)
     void JoinLobby();
 	
+
+#pragma region UI
+public:
+    UPROPERTY()
+    int32 allPlayerCount = 0;
+
+#pragma endregion
 };
