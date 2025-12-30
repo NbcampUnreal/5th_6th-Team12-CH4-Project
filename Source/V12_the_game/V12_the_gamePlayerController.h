@@ -149,6 +149,12 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool IsLockOnMode() const;
 
+	void UpdateDefenseWidgets();
+
+	void CreateDefenseWidget(AV12_the_gamePawn* CarPawn);
+
+	void RemoveDefenseWidget(AV12_the_gamePawn* CarPawn);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;
 
@@ -200,6 +206,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "LockOn")
 	float MaxLockOnDistance = 9000.f;
+
+	// Defense Item UI
+	UPROPERTY(EditDefaultsONly, Category = "UI|DefenseItem")
+	TSubclassOf<UUserWidget> DefenseWidgetClass;
+
+	// Defense Item UI Map
+	UPROPERTY()
+	TMap<AV12_the_gamePawn*, UUserWidget*> DefenseWidgets;
 
 	// 현재 타겟 인덱스
 	int32 CurrentTargetIndex = -1;

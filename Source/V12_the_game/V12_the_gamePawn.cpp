@@ -585,6 +585,15 @@ void AV12_the_gamePawn::OnRep_MissileDefense()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Missile Defense %s"),
 		bMissileDefenseActive ? TEXT("ENABLED") : TEXT("DISABLED"));
+
+	if (AV12_the_gamePlayerController* PC =
+		Cast<AV12_the_gamePlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
+	{
+		if (PC->IsLocalController())
+		{
+			PC->UpdateDefenseWidgets();
+		}
+	}
 }
 
 void AV12_the_gamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

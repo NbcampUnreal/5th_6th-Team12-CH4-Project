@@ -60,7 +60,7 @@ void AV12HomingMissile::Tick(float DeltaTime)
 	{
 		return;
 	}
-	
+
 	// 타겟 유효성 검사
 	if (!IsValid(HomingTarget))
 	{
@@ -134,7 +134,7 @@ void AV12HomingMissile::BeginPlay()
 	{
 		Collision->IgnoreActorWhenMoving(OwnerActor, true);
 	}
-	
+
 }
 
 // 코드 재확인 필요
@@ -165,14 +165,14 @@ void AV12HomingMissile::OnMissileOverlap(
 	{
 		return;
 	}
-	
+
 	// 자기 자신, 오너 무시
 	if (!OtherActor || OtherActor == this || OtherActor == GetOwner())
 	{
 		return;
 	}
 
-	
+
 	if (OtherActor == HomingTarget)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Missile Overlap Hit : %s"), *OtherActor->GetName());

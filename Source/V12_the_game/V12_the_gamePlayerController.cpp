@@ -19,6 +19,7 @@
 #include "Items/V12MissileItem.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "UI/V12_tachoMeter.h"
+#include "UI/V12DefenseWidget.h"
 #include "Player/V12PlayerState.h"
 #include "Game/V12GameInstance.h"
 #include "gamemode/V12_MainGameMode.h"
@@ -81,6 +82,27 @@ void AV12_the_gamePlayerController::BeginPlay()
 		}
 	}
 
+	// DefanseWidget
+	if (IsLocalPlayerController())
+	{
+		UpdateDefenseWidgets();
+	}
+
+	if (IsLocalPlayerController())
+	{
+		RaceUI = CreateWidget<UV12_tachoMeter>(this, RaceUIClass);
+
+		if (RaceUI)
+		{
+			RaceUI->AddToViewport();
+
+		}
+		else
+		{
+			UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn speed UI widget."));
+
+		}
+	}
 
 	if (IsLocalPlayerController())
 	{
@@ -510,6 +532,82 @@ void AV12_the_gamePlayerController::OnRep_LockOnMode()
 bool AV12_the_gamePlayerController::IsLockOnMode() const
 {
 	return bIsLockOnMode;
+}
+
+void AV12_the_gamePlayerController::UpdateDefenseWidgets()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (TActorIterator<AV12_the_gamePawn> It(World); It; ++It)
+	{
+		AV12_the_gamePawn* CarPawn = *It;
+		if (!CarPawn)
+		{
+			continue;
+		}
+
+		const bool bDefenseOn = CarPawn->bMissileDefenseActive;
+		const bool bHasWidget = DefenseWidgets.Contains(CarPawn);
+
+		if (bDefenseOn && !bHasWidget)
+		{
+			CreateDefenseWidget(CarPawn);
+		}
+		else if (!bDefenseOn && bHasWidget)
+		{
+			RemoveDefenseWidget(CarPawn);
+		}
+	}
+
+	for (auto& Elem : DefenseWidgets)
+	{
+		AV12_the_gamePawn* CarPawn = Elem.Key;
+		UV12DefenseWidget* Widget = Cast<UV12DefenseWidget>(Elem.Value);
+
+		if (!CarPawn || !Widget)
+		{
+			continue;
+		}
+
+		Widget->SetTargetPawn(CarPawn);
+	}
+}
+
+void AV12_the_gamePlayerController::CreateDefenseWidget(AV12_the_gamePawn* CarPawn)
+{
+	if (!IsLocalController() || !DefenseWidgetClass || !CarPawn)
+	{
+		return;
+	}
+
+	UUserWidget* Widget = CreateWidget<UUserWidget>(this, DefenseWidgetClass);
+
+	if (UV12DefenseWidget* DefenseWidget = Cast<UV12DefenseWidget>(Widget))
+	{
+		DefenseWidget->TargetPawn = CarPawn;
+	}
+
+	if (!Widget)
+	{
+		return;
+	}
+
+	Widget->AddToViewport(30);
+	DefenseWidgets.Add(CarPawn, Widget);
+}
+
+void AV12_the_gamePlayerController::RemoveDefenseWidget(AV12_the_gamePawn* CarPawn)
+{
+	if (UUserWidget** Found = DefenseWidgets.Find(CarPawn))
+	{
+		(*Found)->RemoveFromParent();
+	}
+
+	DefenseWidgets.Remove(CarPawn);
 }
 
 void AV12_the_gamePlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
