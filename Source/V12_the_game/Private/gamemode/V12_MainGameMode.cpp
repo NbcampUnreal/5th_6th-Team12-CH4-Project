@@ -19,7 +19,7 @@ void AV12_MainGameMode::HandleSeamlessTravelPlayer(AController*& C)
 	{
 		RestartPlayer(PC);
 
-		A_PC.AddUnique(PC); // 중복 방지
+		A_PC.AddUnique(PC); // 중복 방�?
 
 		
 		if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
@@ -28,26 +28,26 @@ void AV12_MainGameMode::HandleSeamlessTravelPlayer(AController*& C)
 		}
 
 
-		static int32 ColorIndex = 0;
+		//static int32 ColorIndex = 0;
 
 
-		if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
-		{
-			FString tempName = PS->PlayerName;
+		//if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
+		//{
+		//	FString tempName = PS->PlayerName;
 
-			if (PresetColors.Num() > 0)
-			{
-				//BP에서 색 지정 후, 복제를 통해 자동 적용
-				PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
-				ColorIndex++;
-			}
+		//	if (PresetColors.Num() > 0)
+		//	{
+		//		//BP?�서 ??지???? 복제�??�해 ?�동 ?�용
+		//		PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
+		//		ColorIndex++;
+		//	}
 
-			UE_LOG(LogTemp, Error, TEXT("Player Name is %s"), *tempName);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("Player Name is ERROR"));
-		}
+		//	UE_LOG(LogTemp, Error, TEXT("Player Name is %s"), *tempName);
+		//}
+		//else
+		//{
+		//	UE_LOG(LogTemp, Error, TEXT("Player Name is ERROR"));
+		//}
 
 	}
 }
@@ -56,7 +56,7 @@ void AV12_MainGameMode::PostSeamlessTravel()
 {
 	Super::PostSeamlessTravel();
 
-	// GameInstance 가져오기
+	// GameInstance 가?�오�?
 	UV12GameInstance* GI = GetGameInstance<UV12GameInstance>();
 	if (IsValid(GI))
 	{
@@ -71,7 +71,7 @@ void AV12_MainGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	/// 점수 올라가는지 확인만 하기 위한 기능
+	/// ?�수 ?�라가?��? ?�인�??�기 ?�한 기능
 	GetWorldTimerManager().SetTimer(
 		TestTimer,
 		this,
@@ -87,11 +87,11 @@ void AV12_MainGameMode::BeginPlay()
 	//	false);
 
 
-	/// 정확한 플레이어 갯수를 체크하고 시작하도록 변경
+	/// ?�확???�레?�어 �?���?체크?�고 ?�작?�도�?변�?
 	// StartCountdown();
 }
 
-/// Seamless Travel 이용시 PostLogin은 사용하지 않는다!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/// Seamless Travel ?�용??PostLogin?� ?�용?��? ?�는??!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
@@ -107,7 +107,7 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 
 		if (PresetColors.Num() > 0)
 		{
-			//BP에서 색 지정 후, 복제를 통해 자동 적용
+			//BP?�서 ??지???? 복제�??�해 ?�동 ?�용
 			PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
 			ColorIndex++;
 		}
@@ -158,7 +158,7 @@ void AV12_MainGameMode::CountdownFunc()
 		if (!IsValid(PC)) continue;
 		PC->CountdownCheck(FText::AsNumber(countdownCount));
 	}
-	/// 끝나면 제거
+	/// ?�나�??�거
 	countdownCount--;
 	if (countdownCount < 0)
 	{
@@ -195,7 +195,7 @@ void AV12_MainGameMode::TestFunc()
 
 void AV12_MainGameMode::RaceManagerStart()
 {
-	// 레이싱 매니저 액터 찾기
+	// ?�이??매니?� ?�터 찾기
 	AActor* FoundActor = UGameplayStatics::GetActorOfClass(GetWorld(), AV12_ARacingManager::StaticClass());
 	AV12_ARacingManager* RacingManager = Cast<AV12_ARacingManager>(FoundActor);
 

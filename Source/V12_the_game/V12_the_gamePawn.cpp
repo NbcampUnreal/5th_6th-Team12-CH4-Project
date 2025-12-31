@@ -147,7 +147,7 @@ void AV12_the_gamePawn::BeginPlay()
 
 	VehicleMesh = GetMesh();
 
-	//몸체 색 변경을 위한 컴포넌트 변수 지정
+	//몸체 ??변경을 ?�한 컴포?�트 변??지??
 	TArray<UActorComponent*> Components;
 	GetComponents(UStaticMeshComponent::StaticClass(), Components);
 
@@ -391,7 +391,7 @@ void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 {
-	/// 카운트다운중 입력 막기 여기서
+	/// 카운?�다?�중 ?�력 막기 ?�기??
 	if (!bRaceStart) return;
 	// route the input
 	DoThrottle(Value.Get<float>());
@@ -400,7 +400,7 @@ void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 void AV12_the_gamePawn::Brake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운트다운중 입력 막기 여기서
+	/// 카운?�다?�중 ?�력 막기 ?�기??
 	if (!bRaceStart) return;
 	DoBrake(Value.Get<float>());
 }
@@ -408,7 +408,7 @@ void AV12_the_gamePawn::Brake(const FInputActionValue& Value)
 void AV12_the_gamePawn::StartBrake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운트다운중 입력 막기 여기서
+	/// 카운?�다?�중 ?�력 막기 ?�기??
 	if (!bRaceStart) return;
 	DoBrakeStart();
 }
@@ -416,7 +416,7 @@ void AV12_the_gamePawn::StartBrake(const FInputActionValue& Value)
 void AV12_the_gamePawn::StopBrake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운트다운중 입력 막기 여기서
+	/// 카운?�다?�중 ?�력 막기 ?�기??
 	if (!bRaceStart) return;
 	DoBrakeStop();
 }
@@ -540,11 +540,11 @@ void AV12_the_gamePawn::UseItem2(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::UseItemByIndex(int32 Index)
 {
-	// 아이템 사용
+	// ?�이???�용
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
+		UE_LOG(LogTemp, Error, TEXT("컨트롤러 ?�음"));
 		return;
 	}
 	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
@@ -998,7 +998,7 @@ float AV12_the_gamePawn::GetSpeedKmh() const
 {
 	const float SpeedCmPerSec = GetVelocity().Size();
 
-	// cm/s → km/h
+	// cm/s ??km/h
 	return SpeedCmPerSec * 0.036f;
 }
 
