@@ -265,17 +265,18 @@ void AV12_the_gamePawn::Tick(float Delta)
 	}
 
 
-	if (ChaosVehicleMovement)
-	{
-		float RPM = ChaosVehicleMovement->GetEngineRotationSpeed();
+	// is Debug MSG! by mpyi
+	//if (ChaosVehicleMovement)
+	//{
+	//	float RPM = ChaosVehicleMovement->GetEngineRotationSpeed();
 
-		GEngine->AddOnScreenDebugMessage(
-			1,
-			0.f,
-			FColor::Green,
-			FString::Printf(TEXT("RPM: %.0f"), RPM)
-		);
-	}
+	//	GEngine->AddOnScreenDebugMessage(
+	//		1,
+	//		0.f,
+	//		FColor::Green,
+	//		FString::Printf(TEXT("RPM: %.0f"), RPM)
+	//	);
+	//}
 
 	
 }

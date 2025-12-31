@@ -37,22 +37,23 @@ void AV12_the_gamePlayerController::BeginPlay()
 	// ensure we're attached to the vehicle pawn so that World Partition streaming works correctly
 	bAttachToPawn = true;
 
-	// only spawn UI on local player controllers
-	if (IsLocalPlayerController())
-	{
-		VehicleUI = CreateWidget<UV12_the_gameUI>(this, VehicleUIClass);
+	//// default UI no use _ mpyi
+	//// only spawn UI on local player controllers
+	//if (IsLocalPlayerController())
+	//{
+	//	VehicleUI = CreateWidget<UV12_the_gameUI>(this, VehicleUIClass);
 
-		if (VehicleUI)
-		{
-			VehicleUI->AddToViewport();
-			
-		}
-		else {
+	//	if (VehicleUI)
+	//	{
+	//		VehicleUI->AddToViewport();
+	//		
+	//	}
+	//	else {
 
-			UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn vehicle UI widget."));
+	//		UE_LOG(LogV12_the_game, Error, TEXT("Could not spawn vehicle UI widget."));
 
-		}
-	}
+	//	}
+	//}
 
 	// Inventory Widget Create
 	if (IsLocalPlayerController())
@@ -165,11 +166,13 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 			// rpm
 			float nowRPM = VehiclePawn->ChaosVehicleMovement->GetEngineRotationSpeed();
 			RaceUI->UpdateRPM(nowRPM);
+			RaceUI->UpdateGearMsg(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
 			
 			//speed
 			float nowSpeed = VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed();
 			// UE_LOG(LogTemp, Error, TEXT("nowSpeed: %f"), nowSpeed);
 			RaceUI->UpdateSpeed(nowSpeed);
+			RaceUI->UpdateSpeedMsg(nowSpeed);
 
 			// score
 			AV12PlayerState* PS = this->GetPlayerState<AV12PlayerState>();
@@ -184,12 +187,13 @@ void AV12_the_gamePlayerController::Tick(float Delta)
 
 			// UE_LOG(LogTemp, Warning, TEXT("Current RPM: %f"), nowRPM);
 		}
-
-		if (IsValid(VehiclePawn) && IsValid(VehicleUI))
-		{
-			VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
-			VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
-		}
+		
+		//// default UI no use _ mpyi
+		//if (IsValid(VehiclePawn) && IsValid(VehicleUI))
+		//{
+		//	VehicleUI->UpdateSpeed(VehiclePawn->GetChaosVehicleMovement()->GetForwardSpeed());
+		//	VehicleUI->UpdateGear(VehiclePawn->GetChaosVehicleMovement()->GetCurrentGear());
+		//}
 
 		// LockOn Wiget Position Update
 		//if (bIsLockOnMode && LockedTarget && LockOnWidget)
@@ -259,6 +263,14 @@ void AV12_the_gamePlayerController::OnPawnDestroyed(AActor* DestroyedPawn)
 	}
 }
 
+void AV12_the_gamePlayerController::setRankMsg_Implementation(int32 NewRank)
+{
+	if (IsValid(RaceUI))
+	{
+		RaceUI->UpdateRank(NewRank);
+	}
+}
+
 
 void AV12_the_gamePlayerController::BeginRace_Implementation()
 {
@@ -277,6 +289,23 @@ void AV12_the_gamePlayerController::CountdownCheck_Implementation(const FText& n
 	if (IsValid(RaceUI))
 	{
 		RaceUI->UpdateCountdown(nowCount);
+	}
+}
+
+
+void AV12_the_gamePlayerController::setLapMsg_Implementation(int32 NewLap)
+{
+	if (IsValid(RaceUI))
+	{
+		RaceUI->UpdateLap(NewLap);
+	}
+}
+
+void AV12_the_gamePlayerController::setFullLapMsg_Implementation(int32 NewLap)
+{
+	if (IsValid(RaceUI))
+	{
+		RaceUI->UpdateFullLap(NewLap);
 	}
 }
 
@@ -320,7 +349,6 @@ void AV12_the_gamePlayerController::Server_ScanTargets_Implementation()
 		}
 	}
 }
-
 
 void AV12_the_gamePlayerController::CycleTarget()
 {

@@ -18,6 +18,7 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UV12_HealthComponent;
 class USoundAttenuation;
+class USplineComponent;
 struct FInputActionValue;
 
 /**
@@ -522,4 +523,5 @@ public:
 	bool getRaceStart() const { return bRaceStart; }
 private:
 	bool bRaceStart = false;
+	
 };
