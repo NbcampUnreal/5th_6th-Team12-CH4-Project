@@ -137,6 +137,95 @@ void AV12_the_gamePawn::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	}
 }
 
+void AV12_the_gamePawn::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// set up the flipped check timer
+	GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AV12_the_gamePawn::FlippedCheck, FlipCheckTime, true);
+
+
+	VehicleMesh = GetMesh();
+
+	//몸체 색 변경을 위한 컴포넌트 변수 지정
+	TArray<UActorComponent*> Components;
+	GetComponents(UStaticMeshComponent::StaticClass(), Components);
+
+	for (UActorComponent* Comp : Components)
+	{
+		if (UStaticMeshComponent* SM = Cast<UStaticMeshComponent>(Comp))
+		{
+			if (SM->ComponentHasTag(TEXT("VehicleBody")))
+			{
+				VehicleBodyMesh = SM;
+				UE_LOG(LogTemp, Warning,
+					TEXT("VehicleBody FOUND: %s"),
+					*SM->GetName()
+				);
+				break;
+			}
+		}
+	}
+
+	ensureMsgf(VehicleBodyMesh, TEXT("VehicleBody StaticMesh NOT FOUND"));
+
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("VehicleBodyMesh NOT FOUND")
+		);
+	}
+
+	if (AV12PlayerState* PS = GetPlayerState<AV12PlayerState>())
+	{
+		ApplyVehicleColor(PS->VehicleColor);
+		UE_LOG(LogTemp, Warning,
+			TEXT("PlayerState FOUND Color=%s"),
+			*PS->VehicleColor.ToString()
+		);
+	}
+
+	//Drift
+	int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
+
+	DefaultSideSlipModifier.SetNum(WheelCount);
+	DefaultFrictionForceMultiplier.SetNum(WheelCount);
+	DefaultCorneringStiffness.SetNum(WheelCount);
+
+	for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
+	{
+		DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
+		DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
+		DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
+	}
+
+	//audio
+	if (IsValid(VehicleMesh))
+	{
+		VehicleMesh->OnComponentHit.AddDynamic(this, &AV12_the_gamePawn::OnVehicleHit);
+	}
+
+	if (IsValid(SideScrapeSound))
+	{
+		SideScrapeAudio->SetSound(SideScrapeSound);
+	}
+
+	//scrape effect
+	if (SideScrapeEffectAsset)
+	{
+		SideScrapeEffect->SetAsset(SideScrapeEffectAsset);
+	}
+
+	//camera
+	BackSpringArm->TargetArmLength = DefaultCameraDistance;
+	BackCamera->SetFieldOfView(DefaultFOV);
+
+	if (SpeedEffectAsset)
+	{
+		SpeedEffect->SetAsset(SpeedEffectAsset);
+	}
+}
+
 void AV12_the_gamePawn::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
 	// clear the flipped check timer
@@ -302,7 +391,7 @@ void AV12_the_gamePawn::Steering(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 {
-	/// 카운?�다?�중 ?�력 막기 ?�기??
+	/// 카운트다운중 입력 막기 여기서
 	if (!bRaceStart) return;
 	// route the input
 	DoThrottle(Value.Get<float>());
@@ -311,7 +400,7 @@ void AV12_the_gamePawn::Throttle(const FInputActionValue& Value)
 void AV12_the_gamePawn::Brake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운?�다?�중 ?�력 막기 ?�기??
+	/// 카운트다운중 입력 막기 여기서
 	if (!bRaceStart) return;
 	DoBrake(Value.Get<float>());
 }
@@ -319,7 +408,7 @@ void AV12_the_gamePawn::Brake(const FInputActionValue& Value)
 void AV12_the_gamePawn::StartBrake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운?�다?�중 ?�력 막기 ?�기??
+	/// 카운트다운중 입력 막기 여기서
 	if (!bRaceStart) return;
 	DoBrakeStart();
 }
@@ -327,7 +416,7 @@ void AV12_the_gamePawn::StartBrake(const FInputActionValue& Value)
 void AV12_the_gamePawn::StopBrake(const FInputActionValue& Value)
 {
 	// route the input
-	/// 카운?�다?�중 ?�력 막기 ?�기??
+	/// 카운트다운중 입력 막기 여기서
 	if (!bRaceStart) return;
 	DoBrakeStop();
 }
@@ -451,11 +540,11 @@ void AV12_the_gamePawn::UseItem2(const FInputActionValue& Value)
 
 void AV12_the_gamePawn::UseItemByIndex(int32 Index)
 {
-	// ?�이???�용
+	// 아이템 사용
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("컨트롤러 ?�음"));
+		UE_LOG(LogTemp, Error, TEXT("컨트롤러 없음"));
 		return;
 	}
 	UV12InventoryComponent* InvComp = PC->GetComponentByClass<UV12InventoryComponent>();
@@ -564,6 +653,29 @@ void AV12_the_gamePawn::ApplyVehicleColor(const FLinearColor& Color)
 	UE_LOG(LogTemp, Warning,
 		TEXT("Paint Tint applied successfully")
 	);
+}
+
+void AV12_the_gamePawn::TryApplyVehicleColor()
+{
+	if (!VehicleBodyMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Mesh not ready"));
+		return;
+	}
+
+	AV12PlayerState* PS = GetPlayerState<AV12PlayerState>();
+	if (!PS)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerState not ready"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("TryApplyVehicleColor Color=%s"),
+		*PS->VehicleColor.ToString()
+	);
+
+	ApplyVehicleColor(PS->VehicleColor);
 }
 
 void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -886,7 +998,7 @@ float AV12_the_gamePawn::GetSpeedKmh() const
 {
 	const float SpeedCmPerSec = GetVelocity().Size();
 
-	// cm/s ??km/h
+	// cm/s → km/h
 	return SpeedCmPerSec * 0.036f;
 }
 
