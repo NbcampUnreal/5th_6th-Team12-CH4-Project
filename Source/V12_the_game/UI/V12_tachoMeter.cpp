@@ -22,7 +22,6 @@ void UV12_tachoMeter::UpdateSpeed(float currentSpeed)
 
 	float ClampedSpeed = FMath::Clamp(FormattedSpeed, 0.f, 240.f);
 	float SpeedRatio = ClampedSpeed / 240.f;
-	int SpeedRatio = ClampedSpeed / 240.f;
 	float TargetAngle = FMath::Lerp(MinAngle, MaxAngle, SpeedRatio);
 
 	SpeedNeedleImage->SetRenderTransformAngle(TargetAngle);
