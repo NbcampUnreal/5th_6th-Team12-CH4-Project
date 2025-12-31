@@ -221,7 +221,94 @@ public:
 	// Begin Actor interface
 
 	/** Initialization */
-	virtual void BeginPlay() override;
+	virtual void BeginPlay() override
+	{
+		Super::BeginPlay();
+
+		// set up the flipped check timer
+		GetWorld()->GetTimerManager().SetTimer(FlipCheckTimer, this, &AV12_the_gamePawn::FlippedCheck, FlipCheckTime, true);
+
+
+		VehicleMesh = GetMesh();
+
+		//몸체 ??변경을 ?�한 컴포?�트 변??지??
+		TArray<UActorComponent*> Components;
+		GetComponents(UStaticMeshComponent::StaticClass(), Components);
+
+		for (UActorComponent* Comp : Components)
+		{
+			if (UStaticMeshComponent* SM = Cast<UStaticMeshComponent>(Comp))
+			{
+				if (SM->ComponentHasTag(TEXT("VehicleBody")))
+				{
+					VehicleBodyMesh = SM;
+					UE_LOG(LogTemp, Warning,
+						TEXT("VehicleBody FOUND: %s"),
+						*SM->GetName()
+					);
+					break;
+				}
+			}
+		}
+
+		ensureMsgf(VehicleBodyMesh, TEXT("VehicleBody StaticMesh NOT FOUND"));
+
+		if (!VehicleBodyMesh)
+		{
+			UE_LOG(LogTemp, Error,
+				TEXT("VehicleBodyMesh NOT FOUND")
+			);
+		}
+
+		if (AV12PlayerState* PS = GetPlayerState<AV12PlayerState>())
+		{
+			ApplyVehicleColor(PS->VehicleColor);
+			UE_LOG(LogTemp, Warning,
+				TEXT("PlayerState FOUND Color=%s"),
+				*PS->VehicleColor.ToString()
+			);
+		}
+
+		//Drift
+		int32 WheelCount = ChaosVehicleMovement->Wheels.Num();
+
+		DefaultSideSlipModifier.SetNum(WheelCount);
+		DefaultFrictionForceMultiplier.SetNum(WheelCount);
+		DefaultCorneringStiffness.SetNum(WheelCount);
+
+		for (int32 i = 0; i < ChaosVehicleMovement->Wheels.Num(); ++i)
+		{
+			DefaultSideSlipModifier[i] = ChaosVehicleMovement->Wheels[i]->SideSlipModifier;
+			DefaultFrictionForceMultiplier[i] = ChaosVehicleMovement->Wheels[i]->FrictionForceMultiplier;
+			DefaultCorneringStiffness[i] = ChaosVehicleMovement->Wheels[i]->CorneringStiffness;
+		}
+
+		//audio
+		if (IsValid(VehicleMesh))
+		{
+			VehicleMesh->OnComponentHit.AddDynamic(this, &AV12_the_gamePawn::OnVehicleHit);
+		}
+
+		if (IsValid(SideScrapeSound))
+		{
+			SideScrapeAudio->SetSound(SideScrapeSound);
+		}
+
+		//scrape effect
+		if (SideScrapeEffectAsset)
+		{
+			SideScrapeEffect->SetAsset(SideScrapeEffectAsset);
+		}
+
+		//camera
+		BackSpringArm->TargetArmLength = DefaultCameraDistance;
+		BackCamera->SetFieldOfView(DefaultFOV);
+
+		if (SpeedEffectAsset)
+		{
+			SpeedEffect->SetAsset(SpeedEffectAsset);
+		}
+	}
 
 	/** Cleanup */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
@@ -274,7 +361,7 @@ protected:
 
 #pragma region Items
 
-	/** Use Item Action, 1,2 slot 아이템 사용 */
+	/** Use Item Action, 1,2 slot ?�이???�용 */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* UseItemAction1;
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -307,13 +394,34 @@ public:
 
 	FTimerHandle MissileDefenseTimer;
 
-	//damage 처리 함수
+	//damage 처리 ?�수
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDamage(float Damage);
 #pragma endregion
 
 	void ApplyVehicleColor(const FLinearColor& Color);
-	void TryApplyVehicleColor();
+	void TryApplyVehicleColor()
+	{
+		if (!VehicleBodyMesh)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Mesh not ready"));
+			return;
+		}
+
+		AV12PlayerState* PS = GetPlayerState<AV12PlayerState>();
+		if (!PS)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PlayerState not ready"));
+			return;
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("TryApplyVehicleColor Color=%s"),
+			*PS->VehicleColor.ToString()
+		);
+
+		ApplyVehicleColor(PS->VehicleColor);
+	}
 
 protected:
 	UFUNCTION()
