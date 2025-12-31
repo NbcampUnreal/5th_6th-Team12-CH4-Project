@@ -414,6 +414,6 @@ public:
 	void setRaceStart(bool val);
 	bool getRaceStart() const { return bRaceStart; }
 private:
-	bool bRaceStart = true;
+	bool bRaceStart = false;
 	
 };
