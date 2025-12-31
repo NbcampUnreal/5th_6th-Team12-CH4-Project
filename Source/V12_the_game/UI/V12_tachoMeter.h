@@ -36,6 +36,30 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Countdown;
 
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* NowLap;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* RapSlash;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* FullLap;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* NowRank;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* NowGear;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* MsgGear;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* NowSpeed;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* MsgSpeed;
+
 	UPROPERTY(EditAnywhere, Category = "Tachometer")
 	float MinAngle = -139.f;
 
@@ -54,4 +78,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Tachometer")
 	void UpdateCountdown(const FText& NewText);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateRank(int32 NewRank);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateLap(int32 NewLap);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateFullLap(int32 NewLap);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateGearMsg(int32 NewGear);
+
+	UFUNCTION(BlueprintCallable, Category = "Tachometer")
+	void UpdateSpeedMsg(float CurrentSpeed);
 };

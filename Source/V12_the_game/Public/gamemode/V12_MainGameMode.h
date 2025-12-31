@@ -30,7 +30,9 @@ public:
 	TArray<AV12_the_gamePlayerController*> A_PC;
 
 	FTimerHandle TestTimer;
+	FTimerHandle TestTimer2;
 	void TestFunc();
+	void RaceManagerStart();
 
 	FTimerHandle CountdownTimer;
 	void StartCountdown();
@@ -38,5 +40,5 @@ public:
 
 	int32 countdownCount;
 	int32 allPlayerCount = 300;
-	
+
 };

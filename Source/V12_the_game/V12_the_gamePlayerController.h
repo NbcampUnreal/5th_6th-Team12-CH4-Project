@@ -96,6 +96,15 @@ public:
 	UFUNCTION(Client, Reliable)
 	void BeginRace();
 
+	UFUNCTION(Client, Reliable)
+	void setRankMsg(int32 NewRank);
+
+	UFUNCTION(Client, Reliable)
+	void setLapMsg(int32 NewLap);
+
+	UFUNCTION(Client, Reliable)
+	void setFullLapMsg(int32 NewLap);
+
 #pragma endregion
 
 #pragma region Items
