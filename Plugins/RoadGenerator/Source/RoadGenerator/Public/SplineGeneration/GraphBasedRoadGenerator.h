@@ -74,7 +74,7 @@ public:
 //============ Tag Assignment for PCG Connection =====================================================================//
 
 	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
-	static void AddComponentTag(
+	static bool AddComponentTag(
 		USplineComponent* Spline,
 		FName Tag);
 

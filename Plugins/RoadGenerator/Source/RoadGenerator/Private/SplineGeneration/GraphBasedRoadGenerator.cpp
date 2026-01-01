@@ -160,22 +160,54 @@ bool AGraphBasedRoadGenerator::ExtractLocationsFromCurvePoints(const TArray<FCur
 	return true;
 }
 
-void AGraphBasedRoadGenerator::AddComponentTag(USplineComponent* Spline, FName Tag)
+bool AGraphBasedRoadGenerator::AddComponentTag(USplineComponent* Spline, FName Tag)
 {
-	if (!Spline || Tag.IsNone())
+	if (!Spline)
 	{
-		UE_LOG(RoadGeneratorLog, Warning,
-			TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Invalid spline or tag"));
-		return;
+		UE_LOG(RoadGeneratorLog, Error,
+			TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Invalid spline"));
+		return false;
 	}
 
-	if (!Spline->ComponentTags.Contains(Tag))
+	if (Tag.IsNone())
 	{
-		Spline->ComponentTags.Add(Tag);
-
-		UE_LOG(RoadGeneratorLog, Warning,
-			TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Invalid spline or tag"));
+		UE_LOG(RoadGeneratorLog, Error,
+			TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Invalid tag"));
+		return false;
 	}
+
+	if (Spline->ComponentTags.Contains(Tag)) // already have tag
+	{
+		UE_LOG(RoadGeneratorLog, Warning,
+			TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Spline [%s] already has tag [%s]"),
+			*Spline->GetName(),
+			*Tag.ToString());
+		return true;
+	}
+
+#if WITH_EDITOR
+	// --- Editor safety ---!!!!!!!
+	Spline->Modify();// Undo/Redo + mark dirty
+
+	if (AActor* Owner = Spline->GetOwner())
+	{
+		Owner->Modify();// ensure actor is marked dirty
+	}
+#endif
+
+	// all good to go. add the tag
+	Spline->ComponentTags.Add(Tag);
+
+	UE_LOG(RoadGeneratorLog, Log,
+		TEXT("AGraphBasedRoadGenerator::AddComponentTag >> Spline [%s] now has tag [%s]"),
+		*Spline->GetName(),
+		*Tag.ToString());
+
+	// --- Make sure editor & PCG see the change ---
+	Spline->MarkRenderStateDirty();   // viewport refresh (safe)
+	Spline->ReregisterComponent();    // critical for PCG detection
+
+	return true;
 }
 
 bool AGraphBasedRoadGenerator::GenerateCurveSegmentSpline(const FCurveSegment& CurveSegment,
