@@ -38,3 +38,52 @@ void UV12_tachoMeter::UpdateCountdown(const FText& NewText)
 	if (!IsValid(Countdown)) return;
 	Countdown->SetText(NewText);
 }
+
+void UV12_tachoMeter::UpdateRank(int32 NewRank)
+{
+	if (!IsValid(NowRank)) return;
+	
+
+	FString Suffix;
+	if (NewRank % 100 >= 11 && NewRank % 100 <= 13)
+	{
+		Suffix = TEXT("th");
+	}
+	else
+	{
+		switch (NewRank % 10)
+		{
+		case 1:  Suffix = TEXT("st"); break;
+		case 2:  Suffix = TEXT("nd"); break;
+		case 3:  Suffix = TEXT("rd"); break;
+		default: Suffix = TEXT("th"); break;
+		}
+	}
+	FString CombinedString = FString::FromInt(NewRank) + Suffix;
+	NowRank->SetText(FText::FromString(CombinedString));
+}
+
+void UV12_tachoMeter::UpdateLap(int32 NewLap)
+{
+	if (!IsValid(NowLap)) return;
+	NowLap->SetText(FText::AsNumber(NewLap));
+}
+
+void UV12_tachoMeter::UpdateFullLap(int32 NewLap)
+{
+	if (!IsValid(FullLap)) return;
+	FullLap->SetText(FText::AsNumber(NewLap));
+}
+
+void UV12_tachoMeter::UpdateGearMsg(int32 NewGear)
+{
+	if (!IsValid(NowGear)) return;
+	NowGear->SetText(FText::AsNumber(NewGear));
+}
+
+void UV12_tachoMeter::UpdateSpeedMsg(float CurrentSpeed)
+{
+	if (!IsValid(NowSpeed)) return;
+	int FormattedSpeed = FMath::Abs(CurrentSpeed) * (0.036f);
+	NowSpeed->SetText(FText::AsNumber(FormattedSpeed));
+}

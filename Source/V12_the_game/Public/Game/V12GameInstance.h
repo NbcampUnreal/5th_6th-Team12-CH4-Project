@@ -18,7 +18,7 @@ class V12_THE_GAME_API UV12GameInstance : public UGameInstance
 	GENERATED_BODY()
 
 public:
-    // �г��� �����
+    // �г��� �����?
     UPROPERTY(BlueprintReadWrite, Category = "Player")
     FString PlayerNickname;
 
@@ -31,7 +31,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Player")
     FString GetPlayerNickname() const { return PlayerNickname; }
 
-    // �г����� ���õƴٰ� �����ϰ� �κ�� ����
+    // �г����� ���õƴٰ� �����ϰ� �κ��?����
     UFUNCTION(BlueprintCallable)
     void JoinLobby();
 	
