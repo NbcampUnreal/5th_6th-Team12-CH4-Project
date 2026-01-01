@@ -277,7 +277,7 @@ protected:
 
 #pragma region Items
 
-	/** Use Item Action, 1,2 slot ?�이???�용 */
+	/** Use Item Action, 1,2 slot ?�이???�용 */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* UseItemAction1;
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -311,7 +311,7 @@ public:
 
 	FTimerHandle MissileDefenseTimer;
 
-	//damage 처리 ?�수
+	//damage 처리 ?�수
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDamage(float Damage);
 #pragma endregion
@@ -329,6 +329,15 @@ protected:
 		const FHitResult& Hit
 	);
 	void StopSideScrape();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlaySideScrape(
+		const FVector& ImpactPoint,
+		const FVector& ImpactNormal
+	);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_StopSideScrape();
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayFrontImpact(FVector ImpactPoint);
@@ -418,5 +427,4 @@ public:
 	bool getRaceStart() const { return bRaceStart; }
 private:
 	bool bRaceStart = false;
-	
 };
