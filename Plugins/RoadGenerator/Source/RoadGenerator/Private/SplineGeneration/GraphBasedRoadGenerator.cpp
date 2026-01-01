@@ -204,8 +204,8 @@ bool AGraphBasedRoadGenerator::AddComponentTag(USplineComponent* Spline, FName T
 		*Tag.ToString());
 
 	// --- Make sure editor & PCG see the change ---
-	Spline->MarkRenderStateDirty();   // viewport refresh (safe)
-	Spline->ReregisterComponent();    // critical for PCG detection
+	Spline->MarkRenderStateDirty();// viewport refresh (safe)
+	Spline->ReregisterComponent();// critical for PCG detection
 
 	return true;
 }
