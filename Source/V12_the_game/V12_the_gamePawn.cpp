@@ -724,26 +724,66 @@ void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* 
 
 		return;
 		
-		/*if (SideScrapeAudio->IsPlaying())
-		{
-			SideScrapeAudio->Stop();
-		}
-
-		if (SideScrapeEffect->IsActive())
-		{
-			SideScrapeEffect->Deactivate();
-		}
-
-		if (IsValid(FrontImpactSound))
-		{
-			UGameplayStatics::PlaySoundAtLocation(
-				GetWorld(),
-				FrontImpactSound,
-				Hit.ImpactPoint
-			);
-		}*/
 	}
 
+	if (bSideHit)
+	{
+		if (AV12_the_gamePawn* OtherPawn = Cast<AV12_the_gamePawn>(OtherActor))
+		{
+			if (GetUniqueID() < OtherPawn->GetUniqueID())
+			{
+				Multicast_PlaySideScrape(Hit.ImpactPoint, Hit.ImpactNormal);
+
+				GetWorld()->GetTimerManager().ClearTimer(ScrapeStopTimer);
+				GetWorld()->GetTimerManager().SetTimer(
+					ScrapeStopTimer,
+					this,
+					&AV12_the_gamePawn::StopSideScrape,
+					ScrapeStopDelay,
+					false
+				);
+			}
+		}
+		else
+		{
+			Multicast_PlaySideScrape(Hit.ImpactPoint, Hit.ImpactNormal);
+
+			GetWorld()->GetTimerManager().ClearTimer(ScrapeStopTimer);
+			GetWorld()->GetTimerManager().SetTimer(
+				ScrapeStopTimer,
+				this,
+				&AV12_the_gamePawn::StopSideScrape,
+				ScrapeStopDelay,
+				false
+			);
+		}
+
+	}
+}
+
+void AV12_the_gamePawn::StopSideScrape()
+{
+	if (HasAuthority())
+	{
+		Multicast_StopSideScrape();
+	}
+}
+
+void AV12_the_gamePawn::Multicast_StopSideScrape_Implementation()
+{
+	if (SideScrapeAudio->IsPlaying())
+	{
+		SideScrapeAudio->Stop();
+	}
+
+	if (SideScrapeEffect->IsActive())
+	{
+		SideScrapeEffect->Deactivate();
+	}
+}
+
+void AV12_the_gamePawn::Multicast_PlaySideScrape_Implementation(const FVector& ImpactPoint, const FVector& ImpactNormal)
+{
 	const float SpeedKmh = GetSpeedKmh();
 
 	if (SpeedKmh < MinScrapeSpeedKmh)
@@ -757,57 +797,37 @@ void AV12_the_gamePawn::OnVehicleHit(UPrimitiveComponent* HitComponent, AActor* 
 		return;
 	}
 
-	if (bSideHit)
+	if (!SideScrapeEffect)
+		return;
+
+	//audio
+	if (!SideScrapeAudio->IsPlaying())
 	{
-		//audio
-		if (!SideScrapeAudio->IsPlaying())
-		{
-			SideScrapeAudio->Play();
-		}
+		SideScrapeAudio->Play();
+	}
 
-		//effect
-		SideScrapeEffect->SetWorldLocation(Hit.ImpactPoint);
+	//effect
+	SideScrapeEffect->SetWorldLocation(ImpactPoint);
 
-		FVector Velocity = GetVelocity();
-		Velocity.Z = 0.f;
+	FVector Velocity = GetVelocity();
+	Velocity.Z = 0.f;
 
-		if (!Velocity.IsNearlyZero())
-		{
-			FVector SparkDir = FVector::VectorPlaneProject(
-				-Velocity.GetSafeNormal(),
-				Hit.ImpactNormal
-			);
-
-			SideScrapeEffect->SetWorldRotation(SparkDir.Rotation());
-		}
-
-		if (!SideScrapeEffect->IsActive())
-		{
-			SideScrapeEffect->Activate();
-		}
-
-		GetWorld()->GetTimerManager().ClearTimer(ScrapeStopTimer);
-		GetWorld()->GetTimerManager().SetTimer(
-			ScrapeStopTimer,
-			this,
-			&AV12_the_gamePawn::StopSideScrape,
-			ScrapeStopDelay,
-			false
+	if (!Velocity.IsNearlyZero())
+	{
+		FVector SparkDir = FVector::VectorPlaneProject(
+			-Velocity.GetSafeNormal(),
+			ImpactNormal
 		);
-	}
-}
 
-void AV12_the_gamePawn::StopSideScrape()
-{
-	if (SideScrapeAudio->IsPlaying())
-	{
-		SideScrapeAudio->Stop();
+		SideScrapeEffect->SetWorldRotation(SparkDir.Rotation());
 	}
 
-	if (SideScrapeEffect->IsActive())
+	if (!SideScrapeEffect->IsActive())
 	{
-		SideScrapeEffect->Deactivate();
+		SideScrapeEffect->Activate();
 	}
+
+	
 }
 
 void AV12_the_gamePawn::Multicast_PlayFrontImpact_Implementation(FVector ImpactPoint)

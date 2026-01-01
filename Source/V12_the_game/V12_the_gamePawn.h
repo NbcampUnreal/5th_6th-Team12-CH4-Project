@@ -327,6 +327,15 @@ protected:
 	void StopSideScrape();
 
 	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlaySideScrape(
+		const FVector& ImpactPoint,
+		const FVector& ImpactNormal
+	);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_StopSideScrape();
+
+	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayFrontImpact(FVector ImpactPoint);
 
 	UPROPERTY()
@@ -413,5 +422,5 @@ public:
 	void setRaceStart(bool val);
 	bool getRaceStart() const { return bRaceStart; }
 private:
-	bool bRaceStart = false;
+	bool bRaceStart = true;
 };
