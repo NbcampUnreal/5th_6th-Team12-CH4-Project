@@ -16,19 +16,35 @@ class V12_THE_GAME_API AV12PlayerState : public APlayerState
 
 public:
     AV12PlayerState();
-    virtual void CopyProperties(APlayerState* PlayerState) override;
+    /// Seamless travel
+    virtual void CopyProperties(APlayerState* PlayerState) override
+    {
+        Super::CopyProperties(PlayerState);
 
-    UPROPERTY(ReplicatedUsing = OnRep_LobbyPlayerName, BlueprintReadOnly, Category = "Lobby")
+        AV12PlayerState* NewPS = Cast<AV12PlayerState>(PlayerState);
+        if (NewPS)
+        {
+            NewPS->PlayerName = this->PlayerName;
+            NewPS->PlayerScore = this->PlayerScore;
+            NewPS->VehicleColor = this->VehicleColor;
+            NewPS->SpawnSlotIndex = this->SpawnSlotIndex;
+        }
+    }
+
+    UPROPERTY(ReplicatedUsing = OnRep_LobbyPlayerName, BlueprintReadWrite, Category = "Lobby")
     FString PlayerName;
 
     void SetPlayerNameOnServer(const FString& NewName);
 
-    // 게임 매니저사용
+    // 게임 매니?�?�용
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "GameManager")
     int32 PlayerScore = 0;
 
+    UPROPERTY(Replicated, BlueprintReadWrite, Category = "StartPoint")
+    int32 SpawnSlotIndex = 0;
 
-    UPROPERTY(ReplicatedUsing = OnRep_VehicleColor)
+
+    UPROPERTY(ReplicatedUsing = OnRep_VehicleColor, BlueprintReadWrite, Category = "Vehicle")
     FLinearColor VehicleColor;
 
     UFUNCTION()

@@ -18,7 +18,10 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UV12_HealthComponent;
 class USoundAttenuation;
+class USplineComponent;
 struct FInputActionValue;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMissileDefenseChanged, AV12_the_gamePawn*);
 
 /**
  *  Vehicle Pawn class
@@ -274,7 +277,7 @@ protected:
 
 #pragma region Items
 
-	/** Use Item Action, 1,2 slot 아이템 사용 */
+	/** Use Item Action, 1,2 slot ?�이???�용 */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* UseItemAction1;
 	UPROPERTY(EditAnywhere, Category = "Input")
@@ -283,7 +286,6 @@ protected:
 	/** CancelLockOnAction */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* CancelLockOnAction;
-
 
 	/** Handles use item input */
 	void UseItem1(const FInputActionValue& Value);
@@ -295,6 +297,8 @@ protected:
 
 public:
 	/** Missile Defense */
+	FOnMissileDefenseChanged OnMissileDefenseChanged;
+
 	UPROPERTY(ReplicatedUsing = OnRep_MissileDefense, VisibleAnywhere, BlueprintReadOnly, Category = "Defense")
 	bool bMissileDefenseActive = false;
 
@@ -307,7 +311,7 @@ public:
 
 	FTimerHandle MissileDefenseTimer;
 
-	//damage 처리 함수
+	//damage 처리 ?�수
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDamage(float Damage);
 #pragma endregion
@@ -422,5 +426,5 @@ public:
 	void setRaceStart(bool val);
 	bool getRaceStart() const { return bRaceStart; }
 private:
-	bool bRaceStart = true;
+	bool bRaceStart = false;
 };

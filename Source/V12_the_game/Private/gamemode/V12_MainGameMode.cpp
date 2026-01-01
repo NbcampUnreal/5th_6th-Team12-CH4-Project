@@ -2,6 +2,8 @@
 #include "Player/V12PlayerState.h"
 #include "V12_the_gamePlayerController.h"
 #include "Game/V12GameInstance.h"
+#include "Game/V12_ARacingManager.h"
+#include "Kismet/GameplayStatics.h"
 
 AV12_MainGameMode::AV12_MainGameMode()
 {
@@ -17,13 +19,35 @@ void AV12_MainGameMode::HandleSeamlessTravelPlayer(AController*& C)
 	{
 		RestartPlayer(PC);
 
-		A_PC.AddUnique(PC); // 중복 방지
+		A_PC.AddUnique(PC); // 중복 방�?
 
 		
 		if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Travel Success - Player Name: %s"), *PS->PlayerName);
 		}
+
+
+		//static int32 ColorIndex = 0;
+
+
+		//if (AV12PlayerState* PS = PC->GetPlayerState<AV12PlayerState>())
+		//{
+		//	FString tempName = PS->PlayerName;
+
+		//	if (PresetColors.Num() > 0)
+		//	{
+		//		//BP?�서 ??지???? 복제�??�해 ?�동 ?�용
+		//		PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
+		//		ColorIndex++;
+		//	}
+
+		//	UE_LOG(LogTemp, Error, TEXT("Player Name is %s"), *tempName);
+		//}
+		//else
+		//{
+		//	UE_LOG(LogTemp, Error, TEXT("Player Name is ERROR"));
+		//}
 
 	}
 }
@@ -32,25 +56,22 @@ void AV12_MainGameMode::PostSeamlessTravel()
 {
 	Super::PostSeamlessTravel();
 
-	// GameInstance 가져오기
+	// GameInstance 가?�오�?
 	UV12GameInstance* GI = GetGameInstance<UV12GameInstance>();
 	if (IsValid(GI))
 	{
 		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
-		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
-		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
-		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
-		UE_LOG(LogTemp, Error, TEXT("PostSeamlessTravel: Player Count = %d"), GI->allPlayerCount);
 	}
 
-	StartCountdown();	
+	StartCountdown();
+
 }
 
 void AV12_MainGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	/// 점수 올라가는지 확인만 하기 위한 기능
+	/// ?�수 ?�라가?��? ?�인�??�기 ?�한 기능
 	GetWorldTimerManager().SetTimer(
 		TestTimer,
 		this,
@@ -58,12 +79,19 @@ void AV12_MainGameMode::BeginPlay()
 		2.0f,
 		true);
 
+	//GetWorldTimerManager().SetTimer(
+	//	TestTimer2,
+	//	this,
+	//	&AV12_MainGameMode::RaceManagerStart,
+	//	10.0f,
+	//	false);
 
-	/// 정확한 플레이어 갯수를 체크하고 시작하도록 변경
+
+	/// ?�확???�레?�어 �?���?체크?�고 ?�작?�도�?변�?
 	// StartCountdown();
 }
 
-/// Seamless Travel 이용시 PostLogin은 사용하지 않는다!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/// Seamless Travel ?�용??PostLogin?� ?�용?��? ?�는??!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
@@ -79,7 +107,7 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 
 		if (PresetColors.Num() > 0)
 		{
-			//BP에서 색 지정 후, 복제를 통해 자동 적용
+			//BP?�서 ??지???? 복제�??�해 ?�동 ?�용
 			PS->VehicleColor = PresetColors[ColorIndex % PresetColors.Num()];
 			ColorIndex++;
 		}
@@ -95,9 +123,6 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Current Player Count: %d"), GI->allPlayerCount);
 		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
-		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
-		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
-		UE_LOG(LogTemp, Error, TEXT("APC Count: %d"), A_PC.Num());
 
 
 		if (GI->allPlayerCount == A_PC.Num())
@@ -108,12 +133,6 @@ void AV12_MainGameMode::PostLogin(APlayerController* NewPlayer)
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-		UE_LOG(LogTemp, Error, TEXT("!!!!!!!!!!!!!!!!!!!!!"));
-
 	}
 
 }
@@ -139,11 +158,14 @@ void AV12_MainGameMode::CountdownFunc()
 		if (!IsValid(PC)) continue;
 		PC->CountdownCheck(FText::AsNumber(countdownCount));
 	}
-	/// 끝나면 제거
+	/// ?�나�??�거
 	countdownCount--;
 	if (countdownCount < 0)
 	{
 		GetWorldTimerManager().ClearTimer(CountdownTimer);
+		
+		/// RACE START!!!!!!!!!!!!!!
+		RaceManagerStart();
 
 		for (auto a : A_PC)
 		{
@@ -168,5 +190,22 @@ void AV12_MainGameMode::TestFunc()
 		if (!IsValid(PS)) continue;
 		PS->PlayerScore += 10;
 		// UE_LOG(LogTemp, Warning, TEXT("Player %s Score: %d"), *PS->PlayerName, PS->PlayerScore);
+	}
+}
+
+void AV12_MainGameMode::RaceManagerStart()
+{
+	// ?�이??매니?� ?�터 찾기
+	AActor* FoundActor = UGameplayStatics::GetActorOfClass(GetWorld(), AV12_ARacingManager::StaticClass());
+	AV12_ARacingManager* RacingManager = Cast<AV12_ARacingManager>(FoundActor);
+
+	if (IsValid(RacingManager))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Racing Manager Found!"));
+		RacingManager->raceStart();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Racing Manager NOT Found in World!"));
 	}
 }

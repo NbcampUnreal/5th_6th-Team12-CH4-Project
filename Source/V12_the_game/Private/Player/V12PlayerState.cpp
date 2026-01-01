@@ -10,20 +10,6 @@ AV12PlayerState::AV12PlayerState()
 }
 
 
-/// Seamless travel
-void AV12PlayerState::CopyProperties(APlayerState* PlayerState)
-{
-    Super::CopyProperties(PlayerState);
-
-    AV12PlayerState* NewPS = Cast<AV12PlayerState>(PlayerState);
-    if (NewPS)
-    {
-        NewPS->PlayerName = this->PlayerName;
-        NewPS->PlayerScore = this->PlayerScore;
-    }
-}
-
-
 void AV12PlayerState::SetPlayerNameOnServer(const FString& NewName)
 {
     PlayerName = NewName;
@@ -48,4 +34,5 @@ void AV12PlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& Ou
     DOREPLIFETIME(AV12PlayerState, PlayerName);
     DOREPLIFETIME(AV12PlayerState, VehicleColor);
     DOREPLIFETIME(AV12PlayerState, PlayerScore);
+    DOREPLIFETIME(AV12PlayerState, VehicleColor);
 }

@@ -96,6 +96,15 @@ public:
 	UFUNCTION(Client, Reliable)
 	void BeginRace();
 
+	UFUNCTION(Client, Reliable)
+	void setRankMsg(int32 NewRank);
+
+	UFUNCTION(Client, Reliable)
+	void setLapMsg(int32 NewLap);
+
+	UFUNCTION(Client, Reliable)
+	void setFullLapMsg(int32 NewLap);
+
 #pragma endregion
 
 #pragma region Items
@@ -149,6 +158,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool IsLockOnMode() const;
 
+	void UpdateDefenseWidgets();
+	void CreateDefenseWidget(AV12_the_gamePawn* CarPawn);
+	void RemoveDefenseWidget(AV12_the_gamePawn* CarPawn);
+
+	//Missile Defense Changed Event
+	void HandleDefenseChanged(AV12_the_gamePawn* CarPawn);
+	void BindAllPawnDefenseDelegates();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;
 
@@ -200,6 +217,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "LockOn")
 	float MaxLockOnDistance = 9000.f;
+
+	// Defense Item UI
+	UPROPERTY(EditDefaultsONly, Category = "UI|DefenseItem")
+	TSubclassOf<UUserWidget> DefenseWidgetClass;
+
+	// Defense Item UI Map
+	UPROPERTY()
+	TMap<AV12_the_gamePawn*, UUserWidget*> DefenseWidgets;
 
 	// 현재 타겟 인덱스
 	int32 CurrentTargetIndex = -1;

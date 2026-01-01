@@ -28,7 +28,7 @@ public:
 #pragma region Item System
 
 public:
-	// 미사일 맞았을 때 호출될 함수
+	// 미사??맞았?????�출???�수
 	UFUNCTION(BlueprintCallable, Category = "Damage|Missile")
 	void LaunchAndSpin(const FVector& HitLocation);
 
@@ -40,7 +40,7 @@ public:
 	void EndBoost();
 
 protected:
-	// ----- 미사일 피격시 받는 충격치-----
+	// ----- 미사???�격??받는 충격�?----
 
 	UPROPERTY(EditAnywhere, Category = "Damage|Missile")
 	float HorizontalImpulse = 5.f;
