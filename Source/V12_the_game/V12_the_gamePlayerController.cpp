@@ -85,8 +85,18 @@ void AV12_the_gamePlayerController::BeginPlay()
 	// DefanseWidget
 	if (IsLocalPlayerController())
 	{
+		BindAllPawnDefenseDelegates();
 		UpdateDefenseWidgets();
 	}
+
+	//// Pawn Missile Defense Changed Event Binding
+	//if (IsLocalController())
+	//{
+	//	for (TActorIterator<AV12_the_gamePawn> It(GetWorld()); It; ++It)
+	//	{
+	//		It->OnMissileDefenseChanged.AddUObject(this, &AV12_the_gamePlayerController::HandleDefenseChanged);
+	//	}
+	//}
 
 	if (IsLocalPlayerController())
 	{
@@ -334,7 +344,7 @@ void AV12_the_gamePlayerController::CycleTarget()
 
 void AV12_the_gamePlayerController::Server_CycleTarget_Implementation()
 {
-	ScanTargets();
+	Server_ScanTargets();
 
 	if (LockOnCandidates.Num() == 0)
 	{
@@ -371,6 +381,7 @@ void AV12_the_gamePlayerController::EnterLockOnMode()
 void AV12_the_gamePlayerController::Server_EnterLockOnMode_Implementation()
 {
 	bIsLockOnMode = true;
+	Server_CycleTarget();
 }
 
 void AV12_the_gamePlayerController::ConfirmMissileFire()
@@ -441,7 +452,16 @@ void AV12_the_gamePlayerController::ChangeLockOnTarget()
 		return;
 	}
 
+	AActor* OldTarget = LockedTarget;
+
 	CycleTarget();
+
+	// 타겟 변경 로직
+
+	if (OldTarget == LockedTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LockedTarget NOT changed"));
+	}
 
 	// 타겟이 바뀌었으면 UI 갱신
 	if (LockOnWidget && LockedTarget)
@@ -492,8 +512,6 @@ void AV12_the_gamePlayerController::OnRep_LockOnMode()
 			LockOnWidget->HideLockOn();
 		}
 	}
-
-	CycleTarget();
 
 	// LockOn Marker
 	if (bIsLockOnMode)
@@ -588,13 +606,13 @@ void AV12_the_gamePlayerController::CreateDefenseWidget(AV12_the_gamePawn* CarPa
 
 	if (UV12DefenseWidget* DefenseWidget = Cast<UV12DefenseWidget>(Widget))
 	{
-		DefenseWidget->TargetPawn = CarPawn;
+		DefenseWidget->SetTargetPawn(CarPawn);
 	}
 
 	if (!Widget)
 	{
 		return;
-	}
+	}  
 
 	Widget->AddToViewport(30);
 	DefenseWidgets.Add(CarPawn, Widget);
@@ -608,6 +626,29 @@ void AV12_the_gamePlayerController::RemoveDefenseWidget(AV12_the_gamePawn* CarPa
 	}
 
 	DefenseWidgets.Remove(CarPawn);
+}
+
+void AV12_the_gamePlayerController::HandleDefenseChanged(AV12_the_gamePawn* CarPawn)
+{
+	UpdateDefenseWidgets();
+}
+
+void AV12_the_gamePlayerController::BindAllPawnDefenseDelegates()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	for (TActorIterator<AV12_the_gamePawn> It(World); It; ++It)
+	{
+		AV12_the_gamePawn* CarPawn = *It;
+		if (!CarPawn) continue;
+
+		CarPawn->OnMissileDefenseChanged.RemoveAll(this);
+		CarPawn->OnMissileDefenseChanged.AddUObject(
+			this,
+			&AV12_the_gamePlayerController::HandleDefenseChanged
+		);
+	}
 }
 
 void AV12_the_gamePlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -150,10 +150,12 @@ public:
 	bool IsLockOnMode() const;
 
 	void UpdateDefenseWidgets();
-
 	void CreateDefenseWidget(AV12_the_gamePawn* CarPawn);
-
 	void RemoveDefenseWidget(AV12_the_gamePawn* CarPawn);
+
+	//Missile Defense Changed Event
+	void HandleDefenseChanged(AV12_the_gamePawn* CarPawn);
+	void BindAllPawnDefenseDelegates();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory", meta = (AllowPrivateAccess = "true"))
 	UV12InventoryComponent* InventoryComponent;

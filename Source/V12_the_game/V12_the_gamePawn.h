@@ -20,6 +20,8 @@ class UV12_HealthComponent;
 class USoundAttenuation;
 struct FInputActionValue;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMissileDefenseChanged, AV12_the_gamePawn*);
+
 /**
  *  Vehicle Pawn class
  *  Handles common functionality for all vehicle types,
@@ -284,7 +286,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* CancelLockOnAction;
 
-
 	/** Handles use item input */
 	void UseItem1(const FInputActionValue& Value);
 	void UseItem2(const FInputActionValue& Value);
@@ -295,6 +296,8 @@ protected:
 
 public:
 	/** Missile Defense */
+	FOnMissileDefenseChanged OnMissileDefenseChanged;
+
 	UPROPERTY(ReplicatedUsing = OnRep_MissileDefense, VisibleAnywhere, BlueprintReadOnly, Category = "Defense")
 	bool bMissileDefenseActive = false;
 
