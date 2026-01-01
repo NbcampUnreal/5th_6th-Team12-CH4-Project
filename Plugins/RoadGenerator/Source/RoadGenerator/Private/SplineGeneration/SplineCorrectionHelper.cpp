@@ -70,6 +70,13 @@ bool USplineCorrectionHelper::GetSplineFromActor(const AActor* InActor, USplineC
 bool USplineCorrectionHelper::ResampleSpline(USplineComponent* SourceSpline, float DesiredSampleDistance, int32 MaxSamplePoints,
                                              ELocationType Type, bool bIsClosed,float& OutCorrectedDistance, TArray<FCurvePointData>& OutSplinePoints)
 {
+	if (!SourceSpline)// passing it without checking valid cause runtime error 
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::InternalResampleSpline >> Invalid SourceSpline"));
+		return false;
+	}
+	
 	return ResampleSpline_Internal(SourceSpline, DesiredSampleDistance, MaxSamplePoints, Type,
 								  0.f, SourceSpline->GetSplineLength(), bIsClosed,
 								  OutCorrectedDistance, OutSplinePoints);
@@ -79,6 +86,13 @@ bool USplineCorrectionHelper::ResampleSplineInRange(USplineComponent* SourceSpli
 	int32 MaxSamplePoints, ELocationType Type, float StartDistance, float EndDistance, float& OutCorrectedDistance,
 	TArray<FCurvePointData>& OutSplinePoints)
 {
+	if (!SourceSpline)//same
+	{
+		UE_LOG(SplineCorrectionHelper, Error,
+			TEXT("USplineCorrectionHelper::InternalResampleSpline >> Invalid SourceSpline"));
+		return false;
+	}
+	
 	return ResampleSpline_Internal(SourceSpline, DesiredSampleDistance, MaxSamplePoints, Type,
 								  StartDistance, EndDistance, false,
 								  OutCorrectedDistance, OutSplinePoints);
@@ -90,13 +104,7 @@ bool USplineCorrectionHelper::ResampleSpline_Internal(USplineComponent* SourceSp
 {
 	OutSplinePoints.Reset();
 	OutCorrectedDistance = 0.f;
-    
-	if (!SourceSpline)
-	{
-		UE_LOG(SplineCorrectionHelper, Error,
-			TEXT("USplineCorrectionHelper::InternalResampleSpline >> Invalid SourceSpline"));
-		return false;
-	}
+	
     
 	const float SplineLength = SourceSpline->GetSplineLength();
 	StartDistance = FMath::Clamp(StartDistance, 0.f, SplineLength);

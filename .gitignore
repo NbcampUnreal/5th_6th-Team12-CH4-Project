@@ -84,3 +84,7 @@ DerivedDataCache/*
 
 # Prerequisites
 *.d
+Content/Teammate/minimumTax/TestMap/PCG_RoadGenerationTestMap_BACKUP_2094.umap
+Content/Teammate/minimumTax/TestMap/PCG_RoadGenerationTestMap_BASE_2094.umap
+Content/Teammate/minimumTax/TestMap/PCG_RoadGenerationTestMap_LOCAL_2094.umap
+Content/Teammate/minimumTax/TestMap/PCG_RoadGenerationTestMap_REMOTE_2094.umap

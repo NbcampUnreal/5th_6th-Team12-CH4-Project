@@ -332,7 +332,7 @@ bool URoadGenerationHelper::ComputeSmoothWeightAlphaFromPoints(const TArray<FCur
     return true;
 }
 
-bool URoadGenerationHelper::ComputeRollFromWeightAlpha(const TArray<float>& WeightAlpha, float MaxBankDegrees,
+bool URoadGenerationHelper::ComputeRollFromWeightAlpha(const TArray<float>& WeightAlpha, float MaxBankDegrees,float RollIntensity,
 	TArray<float>& OutRollDegrees)
 {
 	const int32 NumPoints = WeightAlpha.Num();
@@ -343,7 +343,7 @@ bool URoadGenerationHelper::ComputeRollFromWeightAlpha(const TArray<float>& Weig
 
 	for (int32 i = 0; i < NumPoints; ++i)
 	{
-		OutRollDegrees[i] = WeightAlpha[i] * MaxBankDegrees;
+		OutRollDegrees[i] = WeightAlpha[i] * MaxBankDegrees* RollIntensity;// now with roll intensity
 	}
 
 	return true;
@@ -491,6 +491,47 @@ bool URoadGenerationHelper::LiftUpCurvePoints(const TArray<float>& WeightAlpha, 
             float Alpha = FMath::Clamp(WeightAlpha[i], 0.f, 1.f);
             OutCurvePointData[i].Location.Z += Alpha * LiftingHeight;
         }
+
+	return true;
+}
+
+bool URoadGenerationHelper::GenerateOffsetSplineLocationsFromRoll(const TArray<FCurvePointData>& CurvePoints,
+	const TArray<float>& RollDegrees, FVector2D SideOffset, TArray<FVector>& OutLocations)
+{
+	OutLocations.Reset();
+
+	const int32 Num = CurvePoints.Num();
+	if (Num == 0 || RollDegrees.Num() != Num)
+	{
+		UE_LOG(RoadGenerationHelper, Warning,
+			TEXT("GenerateOffsetSplineLocationsFromRoll >> Invalid input. Points=%d Rolls=%d"),
+			Num, RollDegrees.Num());
+		return false;
+	}
+
+	OutLocations.SetNum(Num);
+
+	for (int32 i = 0; i < Num; ++i)
+	{
+		const FCurvePointData& CP = CurvePoints[i];
+
+		const FVector Forward = CP.ForwardDirection.GetSafeNormal();
+		const FVector Up = CP.UpDirection.GetSafeNormal();
+		const FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal();
+
+		// IMPORTANT: negate roll to match road banking convention
+		const float RollRad = FMath::DegreesToRadians(-RollDegrees[i]);
+		const FQuat RollQuat(Forward, RollRad);
+
+		const FVector RolledRight = RollQuat.RotateVector(Right);
+		const FVector RolledUp = RollQuat.RotateVector(Up);
+
+		const FVector Offset =
+			RolledRight * SideOffset.X +
+			RolledUp * SideOffset.Y;
+
+		OutLocations[i] = CP.Location + Offset;
+	}
 
 	return true;
 }

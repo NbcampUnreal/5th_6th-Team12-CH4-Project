@@ -42,7 +42,45 @@ public:
 	bool GenerateSplineComponent_Uniformed(
 		const TArray<FCurvePointData>& CurvePoints,
 		bool bIsClosed,
+		USplineComponent*& OutGeneratedSpline);//old
+	//--> no more using curvepoint for generation. extract the locations and use them as source.
+
+
+
+	//=============== Updated Functions ==============================================================================//
+
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	bool GenerateSplineComponent_FromLocations(
+		const TArray<FVector>& Locations,
+		bool bIsClosed,
+		ELocationType LocationType,
 		USplineComponent*& OutGeneratedSpline);
+
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	bool RewriteSpline_FromLocations(
+		USplineComponent* Spline,
+		const TArray<FVector>& Locations,
+		ELocationType LocationType,
+		bool bIsClosed);
+
+	/* ===================== Utilities ===================== */
+
+	UFUNCTION(BlueprintCallable, Category = "Road|Spline")
+	static bool ExtractLocationsFromCurvePoints(
+		const TArray<FCurvePointData>& CurvePoints,
+		TArray<FVector>& OutLocations);
+
+
+//============ Tag Assignment for PCG Connection =====================================================================//
+
+	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")
+	static bool AddComponentTag(
+		USplineComponent* Spline,
+		FName Tag);
+
+
+
+	
 
 	UFUNCTION(BlueprintCallable, Category = "Spline|Generation")// this is for reconstructing segment into a spline
 	bool GenerateCurveSegmentSpline(

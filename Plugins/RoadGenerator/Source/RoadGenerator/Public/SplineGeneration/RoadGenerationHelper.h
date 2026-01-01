@@ -95,6 +95,7 @@ public:
 	static bool ComputeRollFromWeightAlpha(
 		const TArray<float>& WeightAlpha,
 		float MaxBankDegrees,
+		float RollIntensity,
 		//out
 		TArray<float>& OutRollDegrees);
 
@@ -126,6 +127,14 @@ public:
 		float LiftingHeight,
 		//out
 		TArray<FCurvePointData>& OutCurvePointData);
+		
+	UFUNCTION(BlueprintCallable, Category="Road|GuardRail")// for generating spline on the side
+    static bool GenerateOffsetSplineLocationsFromRoll(
+        const TArray<FCurvePointData>& CurvePoints,
+        const TArray<float>& RollDegrees,
+        FVector2D SideOffset,
+        // out
+        TArray<FVector>& OutLocations);	
 		
 
 private:
